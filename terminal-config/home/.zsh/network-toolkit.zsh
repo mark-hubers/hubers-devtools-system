@@ -362,25 +362,437 @@ headers() {
     echo "Example: headers https://google.com"
     return 1
   fi
-  
+
   echo "📋 HTTP Headers for: $1"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo ""
   curl -sI "$1"
 }
 
-# Test SSL certificate
+# ====================================
+# SSL/TLS CERTIFICATE TOOLS
+# ====================================
+
+# Quick certificate summary (alias for sslcheck)
 sslcheck() {
-  if [[ -z "$1" ]]; then
-    echo "Usage: sslcheck <domain>"
-    echo "Example: sslcheck google.com"
+  cert "$@"
+}
+
+# Certificate summary - subject, issuer, dates
+cert() {
+  local host="${1:-}"
+  local port="${2:-443}"
+
+  if [[ -z "$host" ]]; then
+    echo "Usage: cert <host> [port]"
+    echo "Example: cert google.com"
     return 1
   fi
-  
-  echo "🔒 SSL Certificate for: $1"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  echo "Certificate for $host:$port"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo | openssl s_client -servername "$host" -connect "$host:$port" 2>/dev/null | \
+    openssl x509 -noout -subject -issuer -dates 2>/dev/null
+}
+
+# Full SSL test suite
+cert-test() {
+  local host="${1:-}"
+  local port="${2:-443}"
+
+  if [[ -z "$host" ]]; then
+    echo "Usage: cert-test <host> [port]"
+    return 1
+  fi
+
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "SSL/TLS Test: $host:$port"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo ""
-  echo | openssl s_client -servername $1 -connect $1:443 2>/dev/null | openssl x509 -noout -dates -subject -issuer
+
+  # 1. Connection test
+  echo "1. Connection Test"
+  echo "─────────────────────────────────────────────────────"
+  if timeout 5 bash -c "echo | openssl s_client -servername '$host' -connect '$host:$port' 2>/dev/null" | grep -q "BEGIN CERTIFICATE"; then
+    echo "   ✅ Connection successful"
+  else
+    echo "   ❌ Connection FAILED"
+    return 1
+  fi
+  echo ""
+
+  # Get cert data
+  local cert_data=$(echo | openssl s_client -servername "$host" -connect "$host:$port" 2>/dev/null)
+
+  # 2. TLS Version
+  echo "2. TLS Version"
+  echo "─────────────────────────────────────────────────────"
+  local tls_version=$(echo "$cert_data" | grep "Protocol" | head -1 | awk '{print $NF}')
+  echo "   Protocol: ${tls_version:-unknown}"
+  echo ""
+
+  # 3. Subject
+  echo "3. Certificate Subject"
+  echo "─────────────────────────────────────────────────────"
+  echo "$cert_data" | openssl x509 -noout -subject 2>/dev/null | sed 's/subject=/   /'
+  echo ""
+
+  # 4. Issuer
+  echo "4. Issuer (CA)"
+  echo "─────────────────────────────────────────────────────"
+  echo "$cert_data" | openssl x509 -noout -issuer 2>/dev/null | sed 's/issuer=/   /'
+  echo ""
+
+  # 5. Expiration
+  echo "5. Expiration"
+  echo "─────────────────────────────────────────────────────"
+  local not_before=$(echo "$cert_data" | openssl x509 -noout -startdate 2>/dev/null | cut -d= -f2)
+  local not_after=$(echo "$cert_data" | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+  echo "   Valid From:  $not_before"
+  echo "   Expires:     $not_after"
+
+  # Calculate days remaining
+  local exp_epoch=$(date -j -f "%b %d %T %Y %Z" "$not_after" "+%s" 2>/dev/null || date -d "$not_after" "+%s" 2>/dev/null)
+  local now_epoch=$(date "+%s")
+  if [[ -n "$exp_epoch" ]]; then
+    local days_left=$(( (exp_epoch - now_epoch) / 86400 ))
+    if [[ $days_left -lt 0 ]]; then
+      echo "   Status:      ❌ EXPIRED (${days_left#-} days ago)"
+    elif [[ $days_left -lt 30 ]]; then
+      echo "   Status:      ⚠️  Expires soon ($days_left days left)"
+    else
+      echo "   Status:      ✅ Valid ($days_left days left)"
+    fi
+  fi
+  echo ""
+
+  # 6. Chain verification
+  echo "6. Chain Verification"
+  echo "─────────────────────────────────────────────────────"
+  local verify_result=$(echo | openssl s_client -servername "$host" -connect "$host:$port" 2>&1 | grep "Verify return code")
+  if echo "$verify_result" | grep -q "0 (ok)"; then
+    echo "   ✅ Certificate chain is valid"
+  else
+    echo "   ⚠️  $verify_result"
+  fi
+  echo ""
+
+  # 7. curl test
+  echo "7. curl Test"
+  echo "─────────────────────────────────────────────────────"
+  local curl_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "https://$host:$port/" 2>/dev/null)
+  if [[ "$curl_code" =~ ^[23] ]]; then
+    echo "   ✅ curl works (HTTP $curl_code)"
+  elif [[ "$curl_code" == "000" ]]; then
+    echo "   ❌ curl failed to connect"
+  else
+    echo "   ⚠️  HTTP $curl_code"
+  fi
+}
+
+# Show full certificate chain
+cert-chain() {
+  local host="${1:-}"
+  local port="${2:-443}"
+
+  if [[ -z "$host" ]]; then
+    echo "Usage: cert-chain <host> [port]"
+    return 1
+  fi
+
+  echo "Full certificate chain for $host:$port"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo | openssl s_client -servername "$host" -connect "$host:$port" -showcerts 2>/dev/null | \
+    grep -E "s:|i:" | sed 's/^ *//'
+}
+
+# Verify certificate chain
+cert-verify() {
+  local host="${1:-}"
+  local port="${2:-443}"
+
+  if [[ -z "$host" ]]; then
+    echo "Usage: cert-verify <host> [port]"
+    return 1
+  fi
+
+  echo "Verifying certificate chain for $host:$port"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo | openssl s_client -servername "$host" -connect "$host:$port" 2>&1 | \
+    grep -E "Verify return code|depth=|verify"
+}
+
+# Check certificate expiration with color-coded status
+cert-dates() {
+  local host="${1:-}"
+  local port="${2:-443}"
+
+  if [[ -z "$host" ]]; then
+    echo "Usage: cert-dates <host> [port]"
+    return 1
+  fi
+
+  echo "Certificate dates for $host:$port"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  local cert_data=$(echo | openssl s_client -servername "$host" -connect "$host:$port" 2>/dev/null)
+  local not_before=$(echo "$cert_data" | openssl x509 -noout -startdate 2>/dev/null | cut -d= -f2)
+  local not_after=$(echo "$cert_data" | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+
+  echo "Valid From:  $not_before"
+  echo "Expires:     $not_after"
+
+  # Calculate days remaining (macOS compatible)
+  local exp_epoch=$(date -j -f "%b %d %T %Y %Z" "$not_after" "+%s" 2>/dev/null || date -d "$not_after" "+%s" 2>/dev/null)
+  local now_epoch=$(date "+%s")
+
+  if [[ -n "$exp_epoch" ]]; then
+    local days_left=$(( (exp_epoch - now_epoch) / 86400 ))
+    if [[ $days_left -lt 0 ]]; then
+      echo "Status:      ❌ EXPIRED (${days_left#-} days ago)"
+    elif [[ $days_left -lt 30 ]]; then
+      echo "Status:      ⚠️  Expires soon ($days_left days left)"
+    else
+      echo "Status:      ✅ Valid ($days_left days left)"
+    fi
+  fi
+}
+
+# Show Subject Alternative Names (what domains the cert covers)
+cert-san() {
+  local host="${1:-}"
+  local port="${2:-443}"
+
+  if [[ -z "$host" ]]; then
+    echo "Usage: cert-san <host> [port]"
+    return 1
+  fi
+
+  echo "Subject Alternative Names for $host:$port"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo | openssl s_client -servername "$host" -connect "$host:$port" 2>/dev/null | \
+    openssl x509 -noout -ext subjectAltName 2>/dev/null | \
+    grep -oE "DNS:[^,]+" | sed 's/DNS://' | sort -u
+}
+
+# Download certificate to file
+cert-download() {
+  local host="${1:-}"
+  local port="${2:-443}"
+  local output="${3:-$host.crt}"
+
+  if [[ -z "$host" ]]; then
+    echo "Usage: cert-download <host> [port] [output_file]"
+    echo "Example: cert-download google.com"
+    echo "         cert-download google.com 443 my-cert.crt"
+    return 1
+  fi
+
+  echo | openssl s_client -servername "$host" -connect "$host:$port" 2>/dev/null | \
+    openssl x509 > "$output"
+
+  if [[ -s "$output" ]]; then
+    echo "✅ Certificate saved to: $output"
+  else
+    echo "❌ Failed to download certificate"
+    rm -f "$output"
+    return 1
+  fi
+}
+
+# Raw openssl output
+cert-raw() {
+  local host="${1:-}"
+  local port="${2:-443}"
+
+  if [[ -z "$host" ]]; then
+    echo "Usage: cert-raw <host> [port]"
+    return 1
+  fi
+
+  echo | openssl s_client -servername "$host" -connect "$host:$port" 2>/dev/null | \
+    openssl x509 -text -noout
+}
+
+# Help for certificate commands
+cert-help() {
+  echo "🔒 SSL/TLS Certificate Tools"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+  echo "QUICK COMMANDS:"
+  echo "  cert <host>           Certificate summary (subject, issuer, dates)"
+  echo "  cert-test <host>      Full SSL test suite (start here!)"
+  echo ""
+  echo "DETAILED INSPECTION:"
+  echo "  cert-chain <host>     Show all certs in chain"
+  echo "  cert-verify <host>    Verify chain completeness"
+  echo "  cert-dates <host>     Expiration with days remaining"
+  echo "  cert-san <host>       Subject Alternative Names (covered domains)"
+  echo ""
+  echo "UTILITIES:"
+  echo "  cert-download <host>  Download certificate to file"
+  echo "  cert-raw <host>       Full certificate details (openssl x509 -text)"
+  echo "  sslcheck <host>       Alias for 'cert'"
+  echo ""
+  echo "PFX FILE OPERATIONS:"
+  echo "  pfx-extract <file>    Extract key, cert, and chain from PFX"
+  echo "  pfx-info <file>       Show what's in a PFX file"
+  echo "  cert-bundle <cert> <chain>  Create bundle file"
+  echo ""
+  echo "All commands accept optional port: cert-test example.com 8443"
+  echo ""
+  echo "COMMON ISSUES:"
+  echo "  'unable to get local issuer certificate' = incomplete chain"
+  echo "  'certificate has expired' = renew the cert!"
+  echo "  'hostname mismatch' = cert doesn't cover this domain"
+}
+
+# ====================================
+# PFX FILE OPERATIONS
+# ====================================
+
+# Extract all components from a PFX file
+pfx-extract() {
+  local pfx_file="${1:-}"
+  local base_name="${2:-}"
+
+  if [[ -z "$pfx_file" ]]; then
+    echo "Usage: pfx-extract <pfx_file> [base_name]"
+    echo ""
+    echo "Extracts key, certificate, and CA chain from a PFX file."
+    echo ""
+    echo "Example:"
+    echo "  pfx-extract wildcard_2026.pfx"
+    echo "  pfx-extract wildcard_2026.pfx myserver"
+    echo ""
+    echo "Creates:"
+    echo "  <base_name>.key        - Private key"
+    echo "  <base_name>.crt        - Server certificate"
+    echo "  <base_name>-chain.crt  - CA chain"
+    echo "  <base_name>-bundle.crt - Full bundle (cert + chain)"
+    return 1
+  fi
+
+  if [[ ! -f "$pfx_file" ]]; then
+    echo "❌ File not found: $pfx_file"
+    return 1
+  fi
+
+  # Default base name from pfx filename
+  if [[ -z "$base_name" ]]; then
+    base_name="${pfx_file%.pfx}"
+    base_name="${base_name%.p12}"
+  fi
+
+  echo "🔐 Extracting from: $pfx_file"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  # Extract private key
+  echo "Extracting private key..."
+  if openssl pkcs12 -in "$pfx_file" -nocerts -nodes 2>/dev/null | \
+      sed -ne '/-BEGIN PRIVATE KEY-/,/-END PRIVATE KEY-/p' > "${base_name}.key"; then
+    if [[ -s "${base_name}.key" ]]; then
+      chmod 600 "${base_name}.key"
+      echo "  ✅ ${base_name}.key"
+    else
+      echo "  ⚠️  No private key found (or wrong password)"
+      rm -f "${base_name}.key"
+    fi
+  fi
+
+  # Extract server certificate
+  echo "Extracting server certificate..."
+  if openssl pkcs12 -in "$pfx_file" -clcerts -nokeys 2>/dev/null | \
+      sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > "${base_name}.crt"; then
+    if [[ -s "${base_name}.crt" ]]; then
+      echo "  ✅ ${base_name}.crt"
+    else
+      echo "  ⚠️  No server certificate found"
+      rm -f "${base_name}.crt"
+    fi
+  fi
+
+  # Extract CA chain
+  echo "Extracting CA chain..."
+  if openssl pkcs12 -in "$pfx_file" -cacerts -nokeys -chain 2>/dev/null | \
+      sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > "${base_name}-chain.crt"; then
+    if [[ -s "${base_name}-chain.crt" ]]; then
+      echo "  ✅ ${base_name}-chain.crt"
+    else
+      echo "  ⚠️  No CA chain found"
+      rm -f "${base_name}-chain.crt"
+    fi
+  fi
+
+  # Create bundle if we have cert and chain
+  if [[ -s "${base_name}.crt" && -s "${base_name}-chain.crt" ]]; then
+    echo "Creating bundle..."
+    cat "${base_name}.crt" "${base_name}-chain.crt" > "${base_name}-bundle.crt"
+    echo "  ✅ ${base_name}-bundle.crt"
+  fi
+
+  echo ""
+  echo "Done! Files created:"
+  ls -la ${base_name}*.{key,crt} 2>/dev/null | awk '{print "  " $NF " (" $5 " bytes)"}'
+}
+
+# Show info about a PFX file
+pfx-info() {
+  local pfx_file="${1:-}"
+
+  if [[ -z "$pfx_file" ]]; then
+    echo "Usage: pfx-info <pfx_file>"
+    return 1
+  fi
+
+  if [[ ! -f "$pfx_file" ]]; then
+    echo "❌ File not found: $pfx_file"
+    return 1
+  fi
+
+  echo "🔐 PFX File Info: $pfx_file"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  # Try to get info (will prompt for password)
+  openssl pkcs12 -in "$pfx_file" -nokeys 2>/dev/null | \
+    openssl x509 -noout -subject -issuer -dates -ext subjectAltName 2>/dev/null
+}
+
+# Create a certificate bundle from cert + chain
+cert-bundle() {
+  local cert_file="${1:-}"
+  local chain_file="${2:-}"
+  local output="${3:-bundle.crt}"
+
+  if [[ -z "$cert_file" || -z "$chain_file" ]]; then
+    echo "Usage: cert-bundle <cert_file> <chain_file> [output_file]"
+    echo ""
+    echo "Creates a bundle with cert first, then chain."
+    echo "Default output: bundle.crt"
+    return 1
+  fi
+
+  if [[ ! -f "$cert_file" ]]; then
+    echo "❌ Certificate file not found: $cert_file"
+    return 1
+  fi
+
+  if [[ ! -f "$chain_file" ]]; then
+    echo "❌ Chain file not found: $chain_file"
+    return 1
+  fi
+
+  cat "$cert_file" "$chain_file" > "$output"
+  echo "✅ Bundle created: $output"
+
+  # Verify
+  echo ""
+  echo "Bundle contents:"
+  openssl crl2pkcs7 -nocrl -certfile "$output" 2>/dev/null | \
+    openssl pkcs7 -print_certs -noout 2>/dev/null | \
+    grep -E "subject=|issuer=" | head -10
 }
 
 # ====================================
@@ -414,7 +826,7 @@ watchdns() {
 alias netstat-listen='netstat -an | grep LISTEN'
 alias netstat-established='netstat -an | grep ESTABLISHED'
 alias flushdns='sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder'  # macOS
-alias myip='curl -s ifconfig.me'
+# myip - defined as function in .zshrc (shows both local and public IP)
 alias localip='ipconfig getifaddr en0'  # macOS wifi
 alias publicip='curl -s ifconfig.me'
 alias ping='ping -c 5'  # Limit to 5 packets by default
@@ -456,9 +868,23 @@ nethelp() {
   echo "  tunnel             - Show SSH tunnel examples"
   echo "  tunnels            - List active SSH tunnels"
   echo ""
-  echo "HTTP/SSL:"
+  echo "HTTP/HEADERS:"
   echo "  headers URL        - Show HTTP headers"
-  echo "  sslcheck DOMAIN    - Check SSL certificate"
+  echo ""
+  echo "SSL/TLS CERTIFICATES:"
+  echo "  cert HOST          - Certificate summary"
+  echo "  cert-test HOST     - Full SSL test suite (start here!)"
+  echo "  cert-chain HOST    - Show all certs in chain"
+  echo "  cert-verify HOST   - Verify chain completeness"
+  echo "  cert-dates HOST    - Expiration with days remaining"
+  echo "  cert-san HOST      - Subject Alternative Names"
+  echo "  cert-download HOST - Save certificate to file"
+  echo "  cert-help          - Full SSL/TLS help"
+  echo ""
+  echo "PFX FILES:"
+  echo "  pfx-extract FILE   - Extract key, cert, chain from PFX"
+  echo "  pfx-info FILE      - Show what's in a PFX file"
+  echo "  cert-bundle C CH   - Create bundle from cert + chain"
   echo ""
   echo "MONITORING:"
   echo "  watchnet           - Watch connections live"

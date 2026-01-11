@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 # ============================================================================
 # Setup Utilities - Shared Library for hubers-devtools
 # ============================================================================
@@ -94,7 +94,8 @@ ask_yes_no() {
         prompt="$prompt [y/N] "
     fi
 
-    read -p "$prompt" -n 1 -r
+    echo -n "$prompt"
+    read -k 1 REPLY
     echo ""
 
     if [[ -z "$REPLY" ]]; then

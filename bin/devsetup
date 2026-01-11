@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 # ============================================================================
 # Mac Dev Setup - Main Command
 # ============================================================================
@@ -34,7 +34,7 @@ BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # Config
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="${0:a:h:h}"  # Go up one level from bin/ to project root
 TOOLS_FILE="${SCRIPT_DIR}/config/tools.yaml"
 STATE_FILE="${HOME}/.config/mac-dev-setup/state.json"
 LOG_FILE="${HOME}/.config/mac-dev-setup/install.log"
@@ -291,9 +291,10 @@ cmd_install() {
     done
     echo ""
     
-    read -p "Continue? (y/n) " -n 1 -r
+    echo -n "Continue? (y/n) "
+    read -k 1 REPLY
     echo ""
-    
+
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "Cancelled."
         return 0
@@ -505,13 +506,13 @@ cmd_search() {
             local desc=$(get_tool_field "$category" "$tool" "description")
             if [[ "$tool" == *"$query"* ]] || [[ "${desc,,}" == *"${query,,}"* ]]; then
                 ((found++))
-                local status="○"
-                local status_color="$YELLOW"
+                local indicator="○"
+                local indicator_color="$YELLOW"
                 if check_tool_installed "$category" "$tool"; then
-                    status="✅"
-                    status_color="$GREEN"
+                    indicator="✅"
+                    indicator_color="$GREEN"
                 fi
-                echo -e "${status_color}${status}${NC} ${BOLD}$tool${NC} [$category]"
+                echo -e "${indicator_color}${indicator}${NC} ${BOLD}$tool${NC} [$category]"
                 echo -e "   $desc"
                 echo ""
             fi
@@ -556,20 +557,20 @@ cmd_list() {
     for tool in $(get_tools_in_category "$category"); do
         local desc=$(get_tool_field "$category" "$tool" "description")
         local required=$(get_tool_field "$category" "$tool" "required")
-        local status="○"
-        local status_color="$YELLOW"
-        
+        local indicator="○"
+        local indicator_color="$YELLOW"
+
         if check_tool_installed "$category" "$tool"; then
-            status="✅"
-            status_color="$GREEN"
+            indicator="✅"
+            indicator_color="$GREEN"
         fi
-        
+
         local req_badge=""
         if [[ "$required" == "true" ]]; then
             req_badge="${RED}[required]${NC} "
         fi
-        
-        echo -e "${status_color}${status}${NC} ${BOLD}$tool${NC} $req_badge"
+
+        echo -e "${indicator_color}${indicator}${NC} ${BOLD}$tool${NC} $req_badge"
         echo -e "   $desc"
     done
 }
@@ -731,7 +732,8 @@ cmd_tool_versions() {
     
     if [[ -f "$output_file" ]]; then
         warning "File $output_file already exists"
-        read -p "Overwrite? (y/n) " -n 1 -r
+        echo -n "Overwrite? (y/n) "
+        read -k 1 REPLY
         echo ""
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             echo "Cancelled"

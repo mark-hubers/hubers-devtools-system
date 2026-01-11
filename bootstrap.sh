@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 # ============================================================================
 # Bootstrap - Legacy Wrapper
 # ============================================================================
@@ -8,7 +8,7 @@
 # Both do the same thing - use whichever name you remember!
 # ============================================================================
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="${0:a:h}"
 
 echo "Note: bootstrap.sh now calls setup.sh (same functionality)"
 echo ""

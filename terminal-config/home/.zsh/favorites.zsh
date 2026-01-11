@@ -115,11 +115,11 @@ FAVEOF
     [[ ! -f "$FAVORITES_ENABLED" ]] && touch "$FAVORITES_ENABLED"
 }
 
-# Show favorites (colorful 2-column format)
-fav() {
+# Show favorites content (without footer - used by startup to allow extensions before footer)
+_fav_content() {
     _favorites_init
     _fav_colors
-    
+
     # Display configuration - DISPLAY_WIDTH = inner width of box (between borders)
     local DISPLAY_WIDTH=105
 
@@ -127,14 +127,14 @@ fav() {
     echo -e "${C_CYAN}${C_BOLD}╔═════════════════════════════════════════════════════════════════════════════════════════════════════════╗${C_RESET}"
     echo -e "${C_CYAN}${C_BOLD}║${C_RESET} ${C_YELLOW}${C_BOLD}⭐ MY FAVORITE COMMANDS${C_RESET}                                                    ${C_DIM}favedit${C_RESET}${C_DIM}=edit  ${C_DIM}favoff${C_RESET}${C_DIM}=hide${C_RESET} ${C_CYAN}${C_BOLD}║${C_RESET}"
     echo -e "${C_CYAN}${C_BOLD}╚═════════════════════════════════════════════════════════════════════════════════════════════════════════╝${C_RESET}"
-    
+
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
-        
+
         # Section headers with DYNAMIC PADDING
         if [[ "$line" =~ ^#=[[:space:]]*(.+) ]]; then
             local section="${match[1]}"
-            
+
             # Calculate dynamic padding for section headers
             local section_len=${#section}           # Length of section title
             local prefix_len=5                      # " ─── " = space + 3 dashes + space = 5 chars
@@ -142,34 +142,34 @@ fav() {
 
             # Calculate how many dashes needed to reach DISPLAY_WIDTH
             local dash_count=$((DISPLAY_WIDTH - section_len - prefix_len - suffix_len))
-            
+
             # Prevent negative dash count (if section title is too long)
             if (( dash_count < 5 )); then
                 dash_count=5
             fi
-            
+
             # Generate the exact number of dashes needed
             local dashes=$(printf '─%.0s' $(seq 1 $dash_count))
-            
+
             # Display with perfect alignment
             echo -e "${C_MAGENTA}${C_BOLD} ─── ${section} ${dashes}${C_RESET}"
-            
+
         elif [[ "$line" =~ ^# ]]; then
             continue
         else
             # Parse columns
             local col1="${line%%||*}"
             local col2="${line#*||}"
-            
+
             local cmd1="${col1%%|*}"; local desc1="${col1#*|}"
             cmd1="${cmd1%% }"; cmd1="${cmd1## }"; desc1="${desc1%% }"; desc1="${desc1## }"
-            
+
             local cmd2="" desc2=""
             if [[ "$col2" != "$line" && -n "$col2" ]]; then
                 cmd2="${col2%%|*}"; desc2="${col2#*|}"
                 cmd2="${cmd2%% }"; cmd2="${cmd2## }"; desc2="${desc2%% }"; desc2="${desc2## }"
             fi
-            
+
             if [[ -n "$cmd1" ]]; then
                 printf "  ${C_GREEN}%-18s${C_RESET} ${C_WHITE}%-28s${C_RESET}" "$cmd1" "$desc1"
                 if [[ -n "$cmd2" ]]; then
@@ -179,10 +179,20 @@ fav() {
             fi
         fi
     done < "$FAVORITES_FILE"
-    
+}
+
+# Show favorites footer
+_fav_footer() {
+    _fav_colors
     echo -e "${C_CYAN}═════════════════════════════════════════════════════════════════════════════════════════════════════════════${C_RESET}"
     echo -e " ${C_DIM}💡${C_RESET} ${C_YELLOW}th <TAB>${C_RESET} ${C_DIM}browse docs${C_RESET}  ${C_GRAY}│${C_RESET}  ${C_YELLOW}favedit${C_RESET} ${C_DIM}customize${C_RESET}  ${C_GRAY}│${C_RESET}  ${C_YELLOW}favoff${C_RESET} ${C_DIM}disable at startup${C_RESET}"
     echo ""
+}
+
+# Show favorites (colorful 2-column format) - standalone command
+fav() {
+    _fav_content
+    _fav_footer
 }
 
 favedit() {
@@ -214,7 +224,45 @@ favon() { touch "$FAVORITES_ENABLED"; echo "✅ Enabled at startup"; }
 
 _favorites_startup() {
     _favorites_init
-    [[ -f "$FAVORITES_ENABLED" ]] && fav && _show_extension_favorites
+    [[ -f "$FAVORITES_ENABLED" ]] || return 0
+
+    # Check if we're in an SSH session - show short version
+    if [[ -n "$SSH_CONNECTION" || -n "$SSH_TTY" ]]; then
+        fav_short
+    else
+        # Show: main content → extension favorites → footer
+        _fav_content
+        _show_extension_favorites
+        _fav_footer
+    fi
+}
+
+# Short version for SSH sessions
+fav_short() {
+    _favorites_init
+    _fav_colors
+
+    echo ""
+    echo -e "${C_CYAN}${C_BOLD}╔═══════════════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_CYAN}${C_BOLD}║${C_RESET} ${C_YELLOW}${C_BOLD}⭐ QUICK COMMANDS${C_RESET}                    ${C_DIM}favfull = show all${C_RESET} ${C_CYAN}${C_BOLD}║${C_RESET}"
+    echo -e "${C_CYAN}${C_BOLD}╚═══════════════════════════════════════════════════════════════╝${C_RESET}"
+
+    echo -e "${C_MAGENTA}${C_BOLD} ─── ESSENTIALS ────────────────────────────────────────────────${C_RESET}"
+    printf "  ${C_GREEN}%-18s${C_RESET} ${C_WHITE}%-28s${C_RESET} ${C_GRAY}│${C_RESET} ${C_GREEN}%-15s${C_RESET} ${C_WHITE}%s${C_RESET}\n" "th <TAB>" "Browse help topics" "fav" "Show favorites"
+    printf "  ${C_GREEN}%-18s${C_RESET} ${C_WHITE}%-28s${C_RESET} ${C_GRAY}│${C_RESET} ${C_GREEN}%-15s${C_RESET} ${C_WHITE}%s${C_RESET}\n" "z <partial>" "Smart jump (zoxide)" "ll" "List files (eza)"
+    printf "  ${C_GREEN}%-18s${C_RESET} ${C_WHITE}%-28s${C_RESET} ${C_GRAY}│${C_RESET} ${C_GREEN}%-15s${C_RESET} ${C_WHITE}%s${C_RESET}\n" "rg <pattern>" "Search in files" "fd <name>" "Find files"
+    printf "  ${C_GREEN}%-18s${C_RESET} ${C_WHITE}%-28s${C_RESET} ${C_GRAY}│${C_RESET} ${C_GREEN}%-15s${C_RESET} ${C_WHITE}%s${C_RESET}\n" "lazygit" "Git TUI" "gs" "git status"
+
+    echo -e "${C_CYAN}═══════════════════════════════════════════════════════════════════${C_RESET}"
+    echo -e " ${C_DIM}💡${C_RESET} ${C_YELLOW}favfull${C_RESET} ${C_DIM}show complete listing${C_RESET}  ${C_GRAY}│${C_RESET}  ${C_YELLOW}th <TAB>${C_RESET} ${C_DIM}browse all help${C_RESET}"
+    echo ""
+}
+
+# Show full favorites (for use in SSH when you want everything)
+favfull() {
+    _fav_content
+    _show_extension_favorites
+    _fav_footer
 }
 
 # ============================================================================
@@ -281,7 +329,6 @@ _show_extension_favorites() {
         (( dash_count < 5 )) && dash_count=5
         local dashes=$(printf '─%.0s' $(seq 1 $dash_count))
 
-        echo ""
         echo -e "${C_MAGENTA}${C_BOLD} ─── ${header_clean} ${dashes}${C_RESET}"
 
         # Display commands in 2 columns
@@ -323,4 +370,5 @@ _show_extension_favorites() {
     done
 }
 
-_favorites_startup
+# NOTE: _favorites_startup is called from .zshrc AFTER extensions are loaded
+# This ensures plugin favorites functions (like _work_tunnel_favorites) are available

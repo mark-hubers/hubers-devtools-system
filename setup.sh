@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 # ============================================================================
 # Dev Setup - Main Setup Script (macOS & Linux)
 # ============================================================================
@@ -32,7 +32,7 @@ set -e
 # ============================================================================
 
 # Get script directory (where setup.sh is located)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="${0:a:h}"
 
 # Smart install location:
 # - If we're in a git repo, use that location (don't copy)
@@ -80,7 +80,7 @@ detect_os() {
 }
 
 # Get script directory (where setup.sh is located)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="${0:a:h}"
 
 print_header() {
     echo ""
@@ -179,7 +179,8 @@ if [ "$ALREADY_INSTALLED" = true ]; then
     echo -e "${CYAN}${BOLD}setup.sh${NC} handles ${BOLD}BOTH${NC} fresh installs AND updates"
     echo -e "It's smart enough to skip what's already done."
     echo ""
-    read -p "Continue with setup? (Y/n) " -n 1 -r
+    echo -n "Continue with setup? (Y/n) "
+    read -k 1 REPLY
     echo ""
 
     if [[ $REPLY =~ ^[Nn]$ ]]; then
@@ -494,9 +495,10 @@ if [[ -d "$INSTALL_DIR/terminal-config" ]]; then
     echo "Found terminal configuration package."
     echo "This includes your custom .zshrc with 70+ functions, toolkits, and docs."
     echo ""
-    read -p "Install terminal configuration? (y/n) " -n 1 -r
+    echo -n "Install terminal configuration? (y/n) "
+    read -k 1 REPLY
     echo ""
-    
+
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         cd "$INSTALL_DIR/terminal-config"
         ./INSTALL.sh
@@ -545,7 +547,8 @@ else
     done
     echo ""
 
-    read -p "Set up all plugins? (Y/n) " -n 1 -r
+    echo -n "Set up all plugins? (Y/n) "
+    read -k 1 REPLY
     echo ""
 
     if [[ ! $REPLY =~ ^[Nn]$ ]]; then

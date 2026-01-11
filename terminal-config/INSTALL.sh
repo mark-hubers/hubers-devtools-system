@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 # Ultimate Terminal Setup - Installer (Powerlevel10k Edition)
 # 
 # This installs the terminal configuration (zshrc, toolkits, docs)
@@ -11,7 +11,7 @@ echo "════════════════════════�
 echo ""
 
 # Detect framework location (where this script is running from)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="${0:a:h}"
 FRAMEWORK_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Verify we're in the right place
@@ -111,7 +111,8 @@ else
     echo "Option 1: Install via Homebrew (recommended)"
     echo "  brew install powerlevel10k"
     echo ""
-    read -p "Install via Homebrew now? (y/n) " -n 1 -r
+    echo -n "Install via Homebrew now? (y/n) "
+    read -k 1 REPLY
     echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
       brew install powerlevel10k
@@ -121,7 +122,8 @@ else
     echo "Option 2: Install manually"
     echo "  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k"
     echo ""
-    read -p "Install manually now? (y/n) " -n 1 -r
+    echo -n "Install manually now? (y/n) "
+    read -k 1 REPLY
     echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
       git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k

@@ -253,6 +253,7 @@ elif command -v wl-copy &> /dev/null; then
 fi
 
 # Enhanced myip - shows both local and public IPv4
+unalias myip 2>/dev/null  # Clear any existing alias before function definition
 myip() {
   echo "🌐 Your IP Addresses:"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -1547,6 +1548,8 @@ fi
 
 # Enable Powerlevel10k instant prompt (should stay close to top of .zshrc)
 # Initialization code that may require console input must go above this block
+# quiet = suppress warning about console output during init (we show favorites)
+typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
@@ -2176,6 +2179,16 @@ if [[ -d "$HOME/.zsh/extensions.d" ]]; then
     [[ -f "$_ext" ]] && source "$_ext"
   done
   unset _ext
+fi
+
+# ============================================================================
+# FAVORITES STARTUP - Called AFTER extensions so plugin favorites are available
+# ============================================================================
+# Extensions can define _pluginname_favorites() functions that will be
+# discovered and displayed by _show_extension_favorites()
+# ============================================================================
+if type _favorites_startup &>/dev/null; then
+  _favorites_startup
 fi
 
 # ============================================================================

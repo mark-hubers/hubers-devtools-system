@@ -122,8 +122,8 @@ EOF
 
 ### 2. scripts/install.sh
 
-```bash
-#!/bin/bash
+```zsh
+#!/bin/zsh
 # ============================================================================
 # Foo Powertools Installer
 # ============================================================================
@@ -134,8 +134,8 @@ echo "=========================================="
 echo "Foo Powertools Installer"
 echo "=========================================="
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SCRIPT_DIR="${0:a:h}"           # Directory containing this script
+PROJECT_ROOT="${0:a:h:h}"       # Parent directory (project root)
 
 echo "Project: $PROJECT_ROOT"
 echo ""
@@ -170,7 +170,8 @@ else
 fi
 echo ""
 
-read -p "Continue? (y/n) " -n 1 -r
+echo -n "Continue? (y/n) "
+read -k 1 REPLY
 echo ""
 [[ ! $REPLY =~ ^[Yy]$ ]] && echo "Cancelled." && exit 0
 
