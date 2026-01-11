@@ -1,0 +1,42 @@
+# Starship Config - Clean & Simple with Transient Prompt
+
+format = """
+$directory$git_branch$git_status
+$character"""
+
+right_format = ""
+
+# CORRECT: Use [profiles], not [transient_prompt]!
+[profiles]
+transient = """
+$character
+"""
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+
+[directory]
+style = "bold cyan"
+truncation_length = 8
+truncate_to_repo = false
+truncation_symbol = "…/"
+
+[git_branch]
+format = "[ $branch]($style) "
+symbol = " "
+style = "bold purple"
+
+[git_status]
+format = "[$all_status$ahead_behind]($style) "
+style = "bold yellow"
+conflicted = "="
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕"
+untracked = "?"
+stashed = "$"
+modified = "!"
+staged = "+"
+renamed = "»"
+deleted = "✘"

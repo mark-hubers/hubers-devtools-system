@@ -1,0 +1,944 @@
+# ============================================================================
+# Mac Dev Setup - Tool Manifest
+# ============================================================================
+# This file defines ALL tools managed by the setup system.
+# 
+# HOW TO ADD A NEW TOOL:
+#   1. Find the right category (or create one)
+#   2. Add a new entry with these fields:
+#      - name: Tool name (required)
+#      - brew: Homebrew formula/cask name (if installable via brew)
+#      - cask: true if it's a Homebrew Cask (GUI app)
+#      - tap: Custom Homebrew tap if needed
+#      - description: What the tool does
+#      - required: true if essential for your workflow
+#      - check: Command to verify installation
+#      - post_install: Commands to run after installation
+#      - config: Config file locations to backup/restore
+#      - docs: URL to documentation
+#
+# MAINTENANCE TIPS:
+#   - Run 'devsetup check' to see what's installed/missing
+#   - Run 'devsetup outdated' to see what needs updates
+#   - Run 'devsetup export' to backup your tool list
+# ============================================================================
+
+version: "2.0"
+last_updated: "2025-01-07"
+
+# ============================================================================
+# CORE - Absolutely essential, install first
+# ============================================================================
+core:
+  - name: homebrew
+    description: "Package manager for macOS - INSTALL THIS FIRST MANUALLY"
+    check: "brew --version"
+    docs: "https://brew.sh"
+    install_manual: |
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    required: true
+    
+  - name: git
+    brew: git
+    description: "Version control"
+    check: "git --version"
+    required: true
+    
+  - name: zsh
+    brew: zsh
+    description: "Z shell - better than bash"
+    check: "zsh --version"
+    required: true
+
+# ============================================================================
+# SHELL - Terminal enhancement
+# ============================================================================
+shell:
+  - name: oh-my-zsh
+    description: "ZSH framework with plugins"
+    check: "test -d ~/.oh-my-zsh"
+    install_manual: |
+      sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+    post_install:
+      - "git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions"
+      - "git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting"
+      - "git clone https://github.com/zdharma-continuum/fast-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/fast-syntax-highlighting"
+      - "git clone https://github.com/Aloxaf/fzf-tab ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/fzf-tab"
+    required: true
+    
+  - name: powerlevel10k
+    brew: powerlevel10k
+    description: "Beautiful, fast ZSH prompt with transient prompt"
+    check: "test -f /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme || test -f ~/powerlevel10k/powerlevel10k.zsh-theme"
+    post_install:
+      - "echo 'Run: p10k configure'"
+    required: true
+    docs: "https://github.com/romkatv/powerlevel10k"
+    
+  - name: fzf
+    brew: fzf
+    description: "Fuzzy finder - essential for productivity"
+    check: "fzf --version"
+    post_install:
+      - "$(brew --prefix)/opt/fzf/install --all"
+    required: true
+
+# ============================================================================
+# MODERN CLI - Better alternatives to standard tools
+# ============================================================================
+modern_cli:
+  - name: eza
+    brew: eza
+    description: "Modern replacement for ls with icons and git status"
+    check: "eza --version"
+    required: true
+    
+  - name: bat
+    brew: bat
+    description: "Cat with syntax highlighting and git integration"
+    check: "bat --version"
+    post_install:
+      - "bat cache --build"
+    required: true
+    
+  - name: ripgrep
+    brew: ripgrep
+    description: "Ultra-fast grep replacement"
+    check: "rg --version"
+    required: true
+    
+  - name: fd
+    brew: fd
+    description: "Simple, fast find replacement"
+    check: "fd --version"
+    required: true
+    
+  - name: zoxide
+    brew: zoxide
+    description: "Smarter cd command that learns your habits"
+    check: "zoxide --version"
+    required: true
+    
+  - name: delta
+    brew: git-delta
+    description: "Beautiful git diffs with syntax highlighting"
+    check: "delta --version"
+    required: true
+    
+  - name: tldr
+    brew: tldr
+    description: "Simplified man pages with examples"
+    check: "tldr --version"
+    required: false
+    
+  - name: htop
+    brew: htop
+    description: "Interactive process viewer"
+    check: "htop --version"
+    required: false
+    
+  - name: btop
+    brew: btop
+    description: "Beautiful resource monitor"
+    check: "btop --version"
+    required: false
+    
+  - name: procs
+    brew: procs
+    description: "Modern replacement for ps"
+    check: "procs --version"
+    required: false
+    
+  - name: glow
+    brew: glow
+    description: "Render markdown beautifully in terminal"
+    check: "glow --version"
+    required: true
+
+  - name: gum
+    brew: gum
+    description: "Glamorous shell scripts - interactive prompts, spinners, styled text (Charm.sh)"
+    check: "gum --version"
+    required: true
+    docs: "https://github.com/charmbracelet/gum"
+
+# ============================================================================
+# TUI TOOLS - Terminal User Interface applications
+# ============================================================================
+# Beautiful interactive terminal applications. These are optional but make
+# terminal work much more pleasant. Install with: devsetup add <tool>
+# ============================================================================
+tui_tools:
+  - name: superfile
+    brew: superfile
+    description: "Modern file manager TUI with vim keybindings"
+    check: "spf --version"
+    required: false
+    docs: "https://github.com/yorukot/superfile"
+
+  - name: posting
+    brew: posting
+    description: "API testing TUI - like Postman but in terminal"
+    check: "posting --version"
+    required: false
+    docs: "https://github.com/darrenburns/posting"
+
+  - name: lazysql
+    brew: lazysql
+    description: "Database browser TUI - browse tables, run queries"
+    check: "lazysql --version"
+    required: false
+
+  - name: harlequin
+    brew: harlequin
+    description: "SQL IDE TUI - full-featured SQL editor in terminal"
+    check: "harlequin --version"
+    required: false
+    docs: "https://harlequin.sh"
+
+  - name: vhs
+    brew: vhs
+    description: "Terminal recorder - create GIFs/videos from terminal (Charm.sh)"
+    check: "vhs --version"
+    required: false
+    docs: "https://github.com/charmbracelet/vhs"
+
+  - name: mods
+    brew: mods
+    description: "AI in terminal - pipe commands through GPT/Claude (Charm.sh)"
+    check: "mods --version"
+    required: false
+    docs: "https://github.com/charmbracelet/mods"
+
+  - name: soft-serve
+    brew: soft-serve
+    description: "Self-hosted Git server TUI (Charm.sh)"
+    check: "soft --version"
+    required: false
+    docs: "https://github.com/charmbracelet/soft-serve"
+
+# ============================================================================
+# DEV TOOLS - Development utilities
+# ============================================================================
+dev_tools:
+  - name: jq
+    brew: jq
+    description: "JSON processor - essential for APIs"
+    check: "jq --version"
+    required: true
+    
+  - name: yq
+    brew: yq
+    description: "YAML processor - like jq but for YAML"
+    check: "yq --version"
+    required: true
+    
+  - name: httpie
+    brew: httpie
+    description: "User-friendly HTTP client"
+    check: "http --version"
+    required: false
+    
+  - name: curlie
+    brew: curlie
+    description: "Curl with httpie-like syntax"
+    check: "curlie --version"
+    required: false
+    
+  - name: lazygit
+    brew: lazygit
+    description: "Terminal UI for git"
+    check: "lazygit --version"
+    required: true
+    
+  - name: gh
+    brew: gh
+    description: "GitHub CLI - manage repos, PRs, issues from terminal"
+    check: "gh --version"
+    post_install:
+      - "gh auth login"
+    required: true
+    docs: "https://cli.github.com"
+    
+  - name: tree
+    brew: tree
+    description: "Directory listing as tree"
+    check: "tree --version"
+    required: false
+    
+  - name: watch
+    brew: watch
+    description: "Execute command periodically"
+    check: "watch --version"
+    required: false
+
+# ============================================================================
+# CONTAINERS & KUBERNETES - Brew-only tools (kubectl/helm in asdf_tools)
+# ============================================================================
+containers:
+  - name: docker
+    brew: docker
+    cask: true
+    description: "Docker Desktop for Mac"
+    check: "docker --version"
+    required: true
+    docs: "https://docs.docker.com"
+    
+  - name: colima
+    brew: colima
+    description: "Container runtime (Docker Desktop alternative, free)"
+    check: "colima --version"
+    required: false
+    docs: "https://github.com/abiosoft/colima"
+    
+  - name: lazydocker
+    brew: lazydocker
+    description: "Terminal UI for Docker"
+    check: "lazydocker --version"
+    required: false
+    
+  - name: dive
+    brew: dive
+    description: "Explore Docker image layers"
+    check: "dive --version"
+    required: false
+    
+  - name: kubectx
+    brew: kubectx
+    description: "Switch kubectl contexts easily (includes kubens)"
+    check: "kubectx --help"
+    required: true
+    
+  - name: k9s
+    brew: k9s
+    description: "Terminal UI for Kubernetes - amazing!"
+    check: "k9s version"
+    required: true
+    docs: "https://k9scli.io"
+    
+  - name: stern
+    brew: stern
+    description: "Multi-pod log tailing for Kubernetes"
+    check: "stern --version"
+    required: false
+    
+  - name: kustomize
+    brew: kustomize
+    description: "Kubernetes configuration customization"
+    check: "kustomize version"
+    required: false
+    
+  - name: minikube
+    brew: minikube
+    description: "Local Kubernetes cluster"
+    check: "minikube version"
+    required: false
+    
+  - name: kind
+    brew: kind
+    description: "Kubernetes in Docker - fast local clusters"
+    check: "kind --version"
+    required: false
+    
+  - name: argocd
+    brew: argocd
+    description: "Argo CD CLI for GitOps"
+    check: "argocd version --client"
+    required: false
+    
+  - name: flux
+    brew: fluxcd/tap/flux
+    tap: "fluxcd/tap"
+    description: "Flux CD CLI for GitOps"
+    check: "flux --version"
+    required: false
+
+# ============================================================================
+# INFRASTRUCTURE AS CODE - Brew-only tools (see asdf_tools for terraform, etc.)
+# ============================================================================
+iac:
+  - name: tflint
+    brew: tflint
+    description: "Terraform linter"
+    check: "tflint --version"
+    required: false
+    
+  - name: terraform-docs
+    brew: terraform-docs
+    description: "Generate documentation from Terraform"
+    check: "terraform-docs --version"
+    required: false
+    
+  - name: infracost
+    brew: infracost
+    description: "Cloud cost estimates for Terraform"
+    check: "infracost --version"
+    required: false
+    tap: "infracost/infracost"
+    
+  - name: checkov
+    brew: checkov
+    description: "Static analysis for infrastructure as code"
+    check: "checkov --version"
+    required: false
+    
+  - name: ansible
+    brew: ansible
+    description: "Configuration management and automation"
+    check: "ansible --version"
+    required: false
+    
+  - name: pulumi
+    brew: pulumi
+    description: "Infrastructure as Code with real programming languages"
+    check: "pulumi version"
+    required: false
+
+# ============================================================================
+# CLOUD CLI TOOLS - Brew-only (main CLIs in asdf_tools for version management)
+# ============================================================================
+cloud:
+  - name: aws-vault
+    brew: aws-vault
+    cask: true
+    description: "Securely store and access AWS credentials"
+    check: "aws-vault --version"
+    required: false
+    
+  - name: aws-sso-util
+    brew: aws-sso-util
+    description: "AWS SSO utilities"
+    check: "aws-sso-util --help"
+    required: false
+    
+  - name: session-manager-plugin
+    brew: session-manager-plugin
+    cask: true
+    description: "AWS Session Manager for SSH-less access"
+    check: "session-manager-plugin --version"
+    required: false
+    
+  - name: saml2aws
+    brew: saml2aws
+    description: "SAML authentication for AWS"
+    check: "saml2aws --version"
+    required: false
+    
+  - name: granted
+    brew: common-fate/granted/granted
+    tap: "common-fate/granted"
+    description: "Fast AWS credential switching"
+    check: "granted --version"
+    required: false
+
+# ============================================================================
+# VERSION MANAGER (asdf) - Install this first for version-managed tools
+# ============================================================================
+version_manager:
+  - name: asdf
+    brew: asdf
+    description: "Universal version manager - manages terraform, kubectl, node, python, etc."
+    check: "asdf --version"
+    post_install:
+      - "echo '' >> ~/.zshrc"
+      - "echo '# asdf version manager' >> ~/.zshrc"
+      - "echo '. $(brew --prefix asdf)/libexec/asdf.sh' >> ~/.zshrc"
+    required: true
+    docs: "https://asdf-vm.com"
+
+# ============================================================================
+# ASDF-MANAGED TOOLS - Use asdf for these (version switching!)
+# ============================================================================
+# These tools benefit from version management because:
+# - Different projects may need different versions
+# - You can use .tool-versions files for auto-switching
+# - Easy to test with newer/older versions
+#
+# After installing via 'devsetup add <tool>', install a version with:
+#   asdf install <tool> latest
+#   asdf global <tool> latest
+# Or for a specific version:
+#   asdf install terraform 1.5.7
+#   asdf global terraform 1.5.7
+# ============================================================================
+asdf_tools:
+  - name: terraform
+    asdf_plugin: terraform
+    description: "Infrastructure as Code - USE ASDF! Projects need different versions"
+    check: "terraform version"
+    required: true
+    docs: "https://www.terraform.io/docs"
+    default_version: "latest"
+    
+  - name: kubectl
+    asdf_plugin: kubectl
+    description: "Kubernetes CLI - asdf lets you match cluster versions"
+    check: "kubectl version --client"
+    required: true
+    docs: "https://kubernetes.io/docs/reference/kubectl/"
+    default_version: "latest"
+    
+  - name: helm
+    asdf_plugin: helm
+    description: "Kubernetes package manager"
+    check: "helm version"
+    required: true
+    default_version: "latest"
+    
+  - name: nodejs
+    asdf_plugin: nodejs
+    description: "Node.js runtime - different projects need different versions"
+    check: "node --version"
+    required: true
+    default_version: "lts"
+    
+  - name: python
+    asdf_plugin: python
+    description: "Python runtime - manage multiple versions easily"
+    check: "python3 --version"
+    required: true
+    default_version: "latest"
+    
+  - name: golang
+    asdf_plugin: golang
+    description: "Go programming language"
+    check: "go version"
+    required: false
+    default_version: "latest"
+    
+  - name: ruby
+    asdf_plugin: ruby
+    description: "Ruby programming language"
+    check: "ruby --version"
+    required: false
+    default_version: "latest"
+
+  - name: awscli
+    asdf_plugin: awscli
+    description: "AWS CLI v2 - can also use asdf for version management"
+    check: "aws --version"
+    required: true
+    default_version: "latest"
+    docs: "https://aws.amazon.com/cli/"
+    
+  - name: azure-cli
+    asdf_plugin: azure-cli
+    description: "Microsoft Azure CLI"
+    check: "az --version"
+    required: false
+    default_version: "latest"
+    
+  - name: gcloud
+    asdf_plugin: gcloud
+    description: "Google Cloud SDK"
+    check: "gcloud --version"
+    required: false
+    default_version: "latest"
+    
+  - name: terragrunt
+    asdf_plugin: terragrunt
+    description: "Terraform wrapper for DRY infrastructure code"
+    check: "terragrunt --version"
+    required: false
+    default_version: "latest"
+    
+  - name: packer
+    asdf_plugin: packer
+    description: "Build automated machine images"
+    check: "packer --version"
+    required: false
+    default_version: "latest"
+    
+  - name: vault
+    asdf_plugin: vault
+    description: "HashiCorp Vault - secrets management"
+    check: "vault --version"
+    required: false
+    default_version: "latest"
+    
+  - name: java
+    asdf_plugin: java
+    description: "Java JDK - manage multiple Java versions"
+    check: "java --version"
+    required: false
+    default_version: "openjdk-21"
+
+  - name: rust
+    asdf_plugin: rust
+    description: "Rust programming language (can also use rustup)"
+    check: "rustc --version"
+    required: false
+    default_version: "latest"
+
+# ============================================================================
+# AI & PRODUCTIVITY
+# ============================================================================
+ai_tools:
+  - name: claude-code
+    description: "Claude Code - AI coding assistant CLI"
+    check: "claude --version"
+    install_manual: |
+      npm install -g @anthropic-ai/claude-code
+    required: true
+    docs: "https://docs.anthropic.com/en/docs/claude-code"
+    
+  - name: github-copilot-cli
+    description: "GitHub Copilot in the CLI"
+    check: "gh copilot --version"
+    install_manual: |
+      gh extension install github/gh-copilot
+    required: false
+
+# ============================================================================
+# SECURITY & CREDENTIALS
+# ============================================================================
+security:
+  - name: 1password-cli
+    brew: 1password-cli
+    cask: true
+    description: "1Password CLI for secrets management"
+    check: "op --version"
+    post_install:
+      - "echo 'Run: op signin'"
+    required: true
+    docs: "https://developer.1password.com/docs/cli"
+    
+  - name: age
+    brew: age
+    description: "Simple, modern encryption tool"
+    check: "age --version"
+    required: false
+    
+  - name: sops
+    brew: sops
+    description: "Encrypted secrets for Git (works with age)"
+    check: "sops --version"
+    required: false
+    
+  - name: gnupg
+    brew: gnupg
+    description: "GNU Privacy Guard for GPG keys"
+    check: "gpg --version"
+    required: false
+    
+  - name: pinentry-mac
+    brew: pinentry-mac
+    description: "GPG PIN entry for Mac"
+    check: "which pinentry-mac"
+    required: false
+
+# ============================================================================
+# GUI APPS (Casks)
+# ============================================================================
+apps:
+  - name: visual-studio-code
+    brew: visual-studio-code
+    cask: true
+    description: "VS Code - the editor"
+    check: "code --version"
+    required: true
+    
+  - name: iterm2
+    brew: iterm2
+    cask: true
+    description: "Better terminal emulator"
+    check: "test -d '/Applications/iTerm.app'"
+    required: true
+    
+  - name: rectangle
+    brew: rectangle
+    cask: true
+    description: "Window management with keyboard shortcuts"
+    check: "test -d '/Applications/Rectangle.app'"
+    required: false
+    
+  - name: raycast
+    brew: raycast
+    cask: true
+    description: "Spotlight replacement with superpowers"
+    check: "test -d '/Applications/Raycast.app'"
+    required: false
+    
+  - name: slack
+    brew: slack
+    cask: true
+    description: "Team communication"
+    check: "test -d '/Applications/Slack.app'"
+    required: false
+    
+  - name: notion
+    brew: notion
+    cask: true
+    description: "All-in-one workspace"
+    check: "test -d '/Applications/Notion.app'"
+    required: false
+
+# ============================================================================
+# FONTS (for terminal)
+# ============================================================================
+fonts:
+  - name: font-meslo-lg-nerd-font
+    brew: font-meslo-lg-nerd-font
+    cask: true
+    tap: homebrew/cask-fonts
+    description: "Nerd Font with icons - required for Powerlevel10k"
+    check: "ls ~/Library/Fonts/*Meslo* 2>/dev/null || ls /Library/Fonts/*Meslo* 2>/dev/null"
+    required: true
+    
+  - name: font-fira-code-nerd-font
+    brew: font-fira-code-nerd-font
+    cask: true
+    tap: homebrew/cask-fonts
+    description: "Fira Code with ligatures and icons"
+    check: "ls ~/Library/Fonts/*FiraCode* 2>/dev/null || ls /Library/Fonts/*FiraCode* 2>/dev/null"
+    required: false
+    
+  - name: font-jetbrains-mono-nerd-font
+    brew: font-jetbrains-mono-nerd-font
+    cask: true
+    tap: homebrew/cask-fonts
+    description: "JetBrains Mono with icons"
+    check: "ls ~/Library/Fonts/*JetBrains* 2>/dev/null || ls /Library/Fonts/*JetBrains* 2>/dev/null"
+    required: false
+
+# ============================================================================
+# GIT WORKFLOW - Git extensions and helpers
+# ============================================================================
+git_workflow:
+  - name: git-lfs
+    brew: git-lfs
+    description: "Git Large File Storage"
+    check: "git lfs version"
+    post_install:
+      - "git lfs install"
+    required: false
+    
+  - name: git-crypt
+    brew: git-crypt
+    description: "Transparent encryption in Git repos"
+    check: "git-crypt --version"
+    required: false
+    
+  - name: pre-commit
+    brew: pre-commit
+    description: "Git hook framework for code quality"
+    check: "pre-commit --version"
+    required: false
+    docs: "https://pre-commit.com"
+    
+  - name: git-flow
+    brew: git-flow
+    description: "Git branching model extensions"
+    check: "git flow version"
+    required: false
+    
+  - name: gh-dash
+    brew: dlvhdr/formulae/gh-dash
+    tap: "dlvhdr/formulae"
+    description: "GitHub dashboard in terminal"
+    check: "gh dash --help"
+    required: false
+
+# ============================================================================
+# SHELL TOOLS - Terminal enhancement
+# ============================================================================
+shell_tools:
+  - name: tmux
+    brew: tmux
+    description: "Terminal multiplexer - multiple panes/windows"
+    check: "tmux -V"
+    required: false
+    
+  - name: direnv
+    brew: direnv
+    description: "Directory-based environment variables"
+    check: "direnv version"
+    post_install:
+      - "echo 'eval \"$(direnv hook zsh)\"' >> ~/.zshrc"
+    required: false
+    docs: "https://direnv.net"
+    
+  - name: starship
+    brew: starship
+    description: "Cross-shell prompt (alternative to Powerlevel10k)"
+    check: "starship --version"
+    required: false
+    docs: "https://starship.rs"
+    
+  - name: shellcheck
+    brew: shellcheck
+    description: "Shell script linter"
+    check: "shellcheck --version"
+    required: false
+    
+  - name: shfmt
+    brew: shfmt
+    description: "Shell script formatter"
+    check: "shfmt --version"
+    required: false
+
+# ============================================================================
+# MEDIA TOOLS - Image/video processing
+# ============================================================================
+media:
+  - name: imagemagick
+    brew: imagemagick
+    description: "Image manipulation from command line"
+    check: "magick --version"
+    required: false
+    
+  - name: ffmpeg
+    brew: ffmpeg
+    description: "Video/audio processing"
+    check: "ffmpeg -version"
+    required: false
+    
+  - name: graphviz
+    brew: graphviz
+    description: "Graph visualization (for diagrams)"
+    check: "dot -V"
+    required: false
+    
+  - name: plantuml
+    brew: plantuml
+    description: "UML diagrams from text"
+    check: "plantuml -version"
+    required: false
+
+# ============================================================================
+# DATABASE TOOLS
+# ============================================================================
+databases:
+  - name: postgresql
+    brew: postgresql@16
+    description: "PostgreSQL database"
+    check: "psql --version"
+    required: false
+    
+  - name: mysql
+    brew: mysql
+    description: "MySQL database"
+    check: "mysql --version"
+    required: false
+    
+  - name: redis
+    brew: redis
+    description: "In-memory data store"
+    check: "redis-cli --version"
+    required: false
+    
+  - name: sqlite
+    brew: sqlite
+    description: "Lightweight SQL database"
+    check: "sqlite3 --version"
+    required: false
+    
+  - name: mongosh
+    brew: mongosh
+    description: "MongoDB shell"
+    check: "mongosh --version"
+    required: false
+    
+  - name: dbeaver-community
+    brew: dbeaver-community
+    cask: true
+    description: "Universal database GUI"
+    check: "test -d '/Applications/DBeaver.app'"
+    required: false
+
+# ============================================================================
+# API TESTING
+# ============================================================================
+api_tools:
+  - name: postman
+    brew: postman
+    cask: true
+    description: "API development and testing"
+    check: "test -d '/Applications/Postman.app'"
+    required: false
+    
+  - name: insomnia
+    brew: insomnia
+    cask: true
+    description: "REST/GraphQL client"
+    check: "test -d '/Applications/Insomnia.app'"
+    required: false
+    
+  - name: grpcurl
+    brew: grpcurl
+    description: "curl for gRPC"
+    check: "grpcurl --version"
+    required: false
+    
+  - name: websocat
+    brew: websocat
+    description: "WebSocket client/server"
+    check: "websocat --version"
+    required: false
+
+# ============================================================================
+# MARKDOWN & DOCUMENT TOOLS - Convert, view, share markdown
+# ============================================================================
+markdown_tools:
+  - name: pandoc
+    brew: pandoc
+    description: "Universal document converter - MD to PDF, DOCX, HTML, etc."
+    check: "pandoc --version"
+    required: true
+    docs: "https://pandoc.org"
+    
+  - name: glow
+    brew: glow
+    description: "Render markdown beautifully in terminal"
+    check: "glow --version"
+    required: true
+    
+  - name: mdcat
+    brew: mdcat
+    description: "Cat for markdown - renders in terminal with images"
+    check: "mdcat --version"
+    required: false
+    
+  - name: grip
+    brew: grip
+    description: "GitHub-flavored markdown preview in browser"
+    check: "grip --version"
+    required: false
+    docs: "https://github.com/joeyespo/grip"
+
+  - name: marp-cli
+    description: "Markdown to presentation slides (PDF, PPTX, HTML)"
+    check: "marp --version"
+    install_manual: |
+      npm install -g @marp-team/marp-cli
+    required: false
+    docs: "https://marp.app"
+    
+  - name: md-to-pdf
+    description: "Simple markdown to PDF conversion"
+    check: "md-to-pdf --version"
+    install_manual: |
+      npm install -g md-to-pdf
+    required: false
+    
+  - name: basictex
+    brew: basictex
+    cask: true
+    description: "LaTeX for pandoc PDF generation (smaller than full MacTeX)"
+    check: "pdflatex --version"
+    post_install:
+      - "sudo tlmgr update --self"
+      - "sudo tlmgr install collection-fontsrecommended"
+    required: false
+    
+  - name: wkhtmltopdf
+    brew: wkhtmltopdf
+    description: "HTML to PDF converter (alternative PDF engine for pandoc)"
+    check: "wkhtmltopdf --version"
+    required: false
+    
+  - name: lynx
+    brew: lynx
+    description: "Text-based web browser - great for converting HTML to text"
+    check: "lynx --version"
+    required: false

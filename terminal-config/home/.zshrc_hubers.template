@@ -1,0 +1,59 @@
+# ============================================================================
+# Personal ZSH Customizations - ~/.zshrc_hubers
+# ============================================================================
+# This file is for YOUR personal customizations and will NEVER be overwritten
+# by the terminal configuration installer.
+#
+# Add your:
+#   • Custom aliases
+#   • Personal functions
+#   • Environment variables
+#   • Company/project specific configurations
+#   • Anything else you want to persist across reinstalls
+#
+# This file is sourced at the END of ~/.zshrc, so you can override anything
+# from the main configuration if needed.
+# ============================================================================
+
+# ============================================================================
+# EXAMPLES - Uncomment and modify as needed
+# ============================================================================
+
+# --- Personal Aliases ---
+# alias myproject='cd ~/Projects/myapp && code .'
+# alias deploy='./scripts/deploy.sh'
+# alias logs='tail -f /var/log/myapp.log'
+
+# --- Environment Variables ---
+# export MY_API_KEY="your-secret-key"
+# export DATABASE_URL="postgres://localhost/mydb"
+# export NODE_ENV="development"
+
+# --- Personal PATH Additions ---
+# Add directories to your PATH here
+# Note: ~/bin is already in PATH by default
+# if [ -d "$HOME/.local/bin" ]; then
+#   export PATH="$HOME/.local/bin:$PATH"
+# fi
+# export PATH="$HOME/my-custom-tools/bin:$PATH"
+
+# --- Custom Functions ---
+# work() {
+#   cd ~/Projects/work
+#   git pull
+#   code .
+#   npm run dev
+# }
+
+# --- Company Specific ---
+# export AWS_PROFILE="my-company"
+# export KUBECONFIG="~/.kube/company-config"
+# alias vpn-connect='sudo openconnect --config ~/.vpn/config'
+
+# ============================================================================
+# YOUR CUSTOMIZATIONS START HERE
+# ============================================================================
+
+# Add your custom aliases, functions, and configurations below:
+
+
