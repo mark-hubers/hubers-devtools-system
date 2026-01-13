@@ -35,11 +35,162 @@ _gh_check() {
 # AUTHENTICATION & SETUP
 # ====================================
 
-# Quick GitHub auth with clipboard support
+# ====================================
+# ACCOUNT MANAGEMENT (Improved UX)
+# ====================================
+
+# List all GitHub accounts in gh CLI
+ghlist() {
+  echo "📋 GitHub Accounts in gh CLI"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  local accounts=$(gh auth status 2>&1)
+
+  if echo "$accounts" | grep -q "Logged in"; then
+    echo "$accounts" | grep -E "(Logged in|Active account|Token scopes|Git operations)" | while read line; do
+      echo "  $line"
+    done
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Commands: ghadd (add new) | ghswitch (change) | ghremove (delete)"
+  else
+    echo "  No accounts configured yet."
+    echo ""
+    echo "  Run 'ghadd' to add your first account."
+  fi
+}
+
+# Add a new GitHub account (guided)
+ghadd() {
+  echo "➕ Add GitHub Account"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  # Show existing accounts first
+  local existing=$(gh auth status 2>&1 | grep "Logged in" | sed 's/.*account //' | sed 's/ .*//')
+  if [[ -n "$existing" ]]; then
+    echo "📌 Already configured:"
+    echo "$existing" | while read acct; do
+      echo "   • $acct"
+    done
+    echo ""
+  fi
+
+  echo "What type of account are you adding?"
+  echo ""
+  echo "  1) Personal GitHub (github.com) - Web browser login"
+  echo "  2) Personal GitHub (github.com) - Paste token"
+  echo "  3) Work/Enterprise GitHub (SSO) - Will redirect to your company login"
+  echo "  4) GitHub Enterprise Server (self-hosted)"
+  echo ""
+
+  read "choice?Select (1-4): "
+  echo ""
+
+  case $choice in
+    1)
+      echo "🌐 Personal GitHub - Web Browser"
+      echo ""
+      echo "⚠️  IMPORTANT: Check which account you're logged into in your browser!"
+      echo "   The account shown in browser is what gets added."
+      echo ""
+      read "confirm?Ready to open browser? (y/n): "
+      if [[ $confirm == "y" ]]; then
+        gh auth login --hostname github.com --git-protocol https --web
+      fi
+      ;;
+    2)
+      echo "🔑 Personal GitHub - Token"
+      echo ""
+      echo "Steps to get a token:"
+      echo "  1. Go to: https://github.com/settings/tokens/new"
+      echo "  2. Make sure you're logged in as the RIGHT account (check top-right)"
+      echo "  3. Note: 'gh-cli-<username>'"
+      echo "  4. Select scopes: repo, read:org, gist"
+      echo "  5. Generate and copy the token"
+      echo ""
+      read "ready?Press Enter when you have the token..."
+      gh auth login --hostname github.com --git-protocol https --with-token
+      ;;
+    3)
+      echo "🏢 Work/Enterprise GitHub (SSO)"
+      echo ""
+      echo "This will:"
+      echo "  1. Open your browser"
+      echo "  2. Redirect to your company's SSO login (Active Directory, Okta, etc.)"
+      echo "  3. You'll enter your work credentials + 2FA code"
+      echo "  4. Token gets saved automatically"
+      echo ""
+      read "org?Enter your GitHub organization name (or press Enter to skip): "
+      echo ""
+      read "confirm?Ready to open browser for SSO? (y/n): "
+      if [[ $confirm == "y" ]]; then
+        gh auth login --hostname github.com --git-protocol https --web
+        if [[ -n "$org" ]]; then
+          echo ""
+          echo "💡 After login, you may need to authorize SSO for org: $org"
+          echo "   Run: gh auth refresh -h github.com -s read:org"
+        fi
+      fi
+      ;;
+    4)
+      echo "🖥️  GitHub Enterprise Server (self-hosted)"
+      echo ""
+      read "hostname?Enter your GHE hostname (e.g., github.mycompany.com): "
+      if [[ -n "$hostname" ]]; then
+        echo ""
+        gh auth login --hostname "$hostname" --git-protocol https --web
+      fi
+      ;;
+    *)
+      echo "❌ Invalid choice"
+      return 1
+      ;;
+  esac
+
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "Current accounts:"
+  ghlist
+}
+
+# Remove a GitHub account
+ghremove() {
+  echo "🗑️  Remove GitHub Account"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  # Show current accounts
+  ghlist
+  echo ""
+
+  read "user?Enter username to remove (or 'cancel'): "
+
+  if [[ "$user" == "cancel" || -z "$user" ]]; then
+    echo "Cancelled."
+    return 0
+  fi
+
+  echo ""
+  read "confirm?Remove account '$user'? (y/n): "
+
+  if [[ $confirm == "y" ]]; then
+    gh auth logout --user "$user"
+    echo ""
+    echo "✅ Removed: $user"
+  else
+    echo "Cancelled."
+  fi
+}
+
+# Quick GitHub auth (legacy - use ghadd instead)
 ghlogin() {
+  echo "💡 Tip: Use 'ghadd' for guided account setup"
+  echo ""
   echo "🔐 GitHub CLI Authentication"
   echo ""
-  gh auth login --clipboard
+  gh auth login
 }
 
 # Check auth status
@@ -53,6 +204,16 @@ ghstatus() {
 ghswitch() {
   echo "🔄 GitHub Account Switcher"
   echo ""
+
+  local count=$(gh auth status 2>&1 | grep -c "Logged in")
+
+  if [[ $count -lt 2 ]]; then
+    echo "Only one account configured. Use 'ghadd' to add more."
+    echo ""
+    ghlist
+    return 0
+  fi
+
   gh auth switch
 }
 
@@ -755,10 +916,16 @@ SETUP & CONFIGURATION (Work SSO Support!):
   ghtoken           - Interactive token management
   ghtoken-check     - Verify token works
 
-AUTHENTICATION (Traditional):
-  ghlogin           - Login to GitHub (with clipboard support)
+ACCOUNT MANAGEMENT:
+  ghlist            - List all configured accounts
+  ghadd             - Add new account (guided - personal/token/SSO/enterprise)
+  ghremove          - Remove an account
+  ghswitch          - Switch between accounts (fzf)
+  ghauto            - Auto-switch based on current repo owner
+  ghwho             - Show current vs required account for this repo
+  ghaccounts        - List accounts + owner mappings
   ghstatus          - Check authentication status
-  ghswitch          - Switch GitHub accounts
+  ghlogin           - Legacy login (use ghadd instead)
 
 ORGANIZATION (Work):
   ghaudit           - Run organization audit script
