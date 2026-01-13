@@ -57,6 +57,153 @@ ghswitch() {
 }
 
 # ====================================
+# MULTI-ACCOUNT AUTO-SWITCHING
+# ====================================
+# Automatically switches gh account based on repo owner or directory
+
+# Configuration: Map GitHub usernames to account names in gh
+# Add your accounts here (owner -> gh account name)
+typeset -gA GH_ACCOUNT_MAP
+GH_ACCOUNT_MAP=(
+  "mark-hubers"    "mark-hubers"      # Personal primary
+  "markhubers"     "markhubers"       # Personal secondary
+  # "work-org"     "work-sso"         # Work SSO (add when ready)
+)
+
+# Directory-based overrides (optional)
+# Map directory patterns to accounts
+typeset -gA GH_DIR_ACCOUNT_MAP
+GH_DIR_ACCOUNT_MAP=(
+  # "$HOME/work/*"     "work-sso"     # All repos in ~/work/ use work account
+  # "$HOME/personal/*" "mark-hubers"  # All repos in ~/personal/ use personal
+)
+
+# Get current gh account
+_gh_current_account() {
+  gh auth status 2>&1 | grep "Logged in to github.com account" | sed 's/.*account \([^ ]*\).*/\1/'
+}
+
+# Get repo owner from current directory
+_gh_repo_owner() {
+  local remote_url
+  remote_url=$(git remote get-url origin 2>/dev/null) || return 1
+
+  # Extract owner from various URL formats
+  # git@github.com:owner/repo.git
+  # https://github.com/owner/repo.git
+  # git@github-alias:owner/repo.git
+  echo "$remote_url" | sed -E 's#^(git@[^:]+:|https://[^/]+/)([^/]+)/.*#\2#'
+}
+
+# Get required account for current directory
+_gh_required_account() {
+  local current_dir="$PWD"
+  local owner
+
+  # First check directory-based overrides
+  for pattern account in ${(kv)GH_DIR_ACCOUNT_MAP}; do
+    if [[ "$current_dir" == ${~pattern} ]]; then
+      echo "$account"
+      return 0
+    fi
+  done
+
+  # Then check repo owner
+  owner=$(_gh_repo_owner) || return 1
+
+  # Look up account for this owner
+  if [[ -n "${GH_ACCOUNT_MAP[$owner]}" ]]; then
+    echo "${GH_ACCOUNT_MAP[$owner]}"
+    return 0
+  fi
+
+  # Owner not in map
+  return 1
+}
+
+# Auto-switch to correct account for current repo
+ghauto() {
+  local current_account required_account owner
+
+  current_account=$(_gh_current_account)
+  required_account=$(_gh_required_account)
+  owner=$(_gh_repo_owner)
+
+  if [[ -z "$required_account" ]]; then
+    if [[ -n "$owner" ]]; then
+      echo "⚠️  Owner '$owner' not in GH_ACCOUNT_MAP"
+      echo "   Add to ~/.zsh/github-cli-toolkit.zsh or use 'ghswitch'"
+    else
+      echo "📁 Not in a git repo with GitHub remote"
+    fi
+    return 1
+  fi
+
+  if [[ "$current_account" == "$required_account" ]]; then
+    echo "✅ Already using correct account: $current_account"
+    return 0
+  fi
+
+  echo "🔄 Switching: $current_account -> $required_account"
+  if gh auth switch --user "$required_account" 2>/dev/null; then
+    echo "✅ Now using: $required_account"
+  else
+    echo "❌ Failed to switch. Is '$required_account' logged in?"
+    echo "   Run: gh auth login"
+  fi
+}
+
+# Show which account should be used here
+ghwho() {
+  local current_account required_account owner
+
+  current_account=$(_gh_current_account)
+  required_account=$(_gh_required_account)
+  owner=$(_gh_repo_owner)
+
+  echo "📍 GitHub Account Status"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "Current account:  $current_account"
+  echo "Repo owner:       ${owner:-"(not a GitHub repo)"}"
+  echo "Required account: ${required_account:-"(unknown)"}"
+
+  if [[ -n "$required_account" && "$current_account" != "$required_account" ]]; then
+    echo ""
+    echo "⚠️  Account mismatch! Run 'ghauto' to switch"
+  elif [[ -n "$required_account" ]]; then
+    echo ""
+    echo "✅ Correct account active"
+  fi
+}
+
+# List all configured accounts
+ghaccounts() {
+  echo "📋 GitHub Accounts"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+  echo "Logged in:"
+  gh auth status 2>&1 | grep -E "(Logged in|Active account)"
+  echo ""
+  echo "Account mappings:"
+  for owner account in ${(kv)GH_ACCOUNT_MAP}; do
+    printf "  %-20s -> %s\n" "$owner" "$account"
+  done
+  echo ""
+  echo "Commands:"
+  echo "  ghauto     - Auto-switch to correct account for this repo"
+  echo "  ghwho      - Show current vs required account"
+  echo "  ghswitch   - Manual account switch"
+  echo "  gh auth login - Add new account"
+}
+
+# Hook to auto-switch on directory change (optional - can slow down cd)
+# Uncomment to enable automatic switching when you cd into a repo
+# _gh_auto_switch_hook() {
+#   [[ -d .git ]] && ghauto 2>/dev/null
+# }
+# add-zsh-hook chpwd _gh_auto_switch_hook
+
+# ====================================
 # REPOSITORY OPERATIONS
 # ====================================
 
