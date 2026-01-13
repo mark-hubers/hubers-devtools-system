@@ -80,9 +80,12 @@ ghadd() {
   echo "What type of account are you adding?"
   echo ""
   echo "  1) Personal GitHub (github.com) - Web browser login"
-  echo "  2) Personal GitHub (github.com) - Paste token"
-  echo "  3) Work/Enterprise GitHub (SSO) - Will redirect to your company login"
-  echo "  4) GitHub Enterprise Server (self-hosted)"
+  echo "  2) Personal GitHub (github.com) - Paste token (easier for multi-account)"
+  echo "  3) Work - GitHub Enterprise Cloud (SSO/SAML) - github.com with company SSO"
+  echo "  4) Work - GitHub Enterprise Server (self-hosted) - your-company.github.com"
+  echo ""
+  echo "💡 Most work accounts use option 3 (Enterprise Cloud)"
+  echo "   Option 4 is only if your company runs their own GitHub server"
   echo ""
 
   read "choice?Select (1-4): "
@@ -153,6 +156,72 @@ ghadd() {
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "Current accounts:"
   ghlist
+}
+
+# Test GitHub account connectivity
+ghtest() {
+  echo "🧪 GitHub Account Test"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  # Get current account
+  local current=$(gh auth status 2>&1 | grep "Logged in" | head -1 | sed 's/.*account //' | sed 's/ .*//')
+
+  if [[ -z "$current" ]]; then
+    echo "❌ No account logged in"
+    echo "   Run 'ghadd' to add an account"
+    return 1
+  fi
+
+  echo "Testing account: $current"
+  echo ""
+
+  # Test 1: API access
+  echo -n "  API access:        "
+  if gh api user --jq '.login' &>/dev/null; then
+    local login=$(gh api user --jq '.login' 2>/dev/null)
+    echo "✅ $login"
+  else
+    echo "❌ Failed"
+    return 1
+  fi
+
+  # Test 2: Get user info
+  echo -n "  User info:         "
+  local name=$(gh api user --jq '.name // "not set"' 2>/dev/null)
+  local email=$(gh api user --jq '.email // "private"' 2>/dev/null)
+  echo "✅ $name <$email>"
+
+  # Test 3: List repos (just count)
+  echo -n "  Repo access:       "
+  local repo_count=$(gh repo list --limit 5 --json name 2>/dev/null | grep -c '"name"' || echo "0")
+  if [[ $repo_count -gt 0 ]]; then
+    echo "✅ Can list repos"
+  else
+    echo "⚠️  No repos or no access"
+  fi
+
+  # Test 4: Check token scopes
+  echo -n "  Token scopes:      "
+  local scopes=$(gh auth status 2>&1 | grep "Token scopes" | sed "s/.*Token scopes: '//" | sed "s/'//")
+  echo "✅ $scopes"
+
+  # Test 5: Check for SSO (org access)
+  echo -n "  SSO/Org access:    "
+  local orgs=$(gh api user/orgs --jq '.[].login' 2>/dev/null | tr '\n' ', ' | sed 's/,$//')
+  if [[ -n "$orgs" ]]; then
+    echo "✅ $orgs"
+  else
+    echo "ℹ️  No orgs (or SSO not authorized)"
+  fi
+
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "✅ Account '$current' is working!"
+  echo ""
+  echo "💡 To test a different account:"
+  echo "   ghswitch          # Switch to another account"
+  echo "   ghtest            # Test again"
 }
 
 # Remove a GitHub account
@@ -919,13 +988,13 @@ SETUP & CONFIGURATION (Work SSO Support!):
 ACCOUNT MANAGEMENT:
   ghlist            - List all configured accounts
   ghadd             - Add new account (guided - personal/token/SSO/enterprise)
+  ghtest            - Test current account connectivity
   ghremove          - Remove an account
   ghswitch          - Switch between accounts (fzf)
   ghauto            - Auto-switch based on current repo owner
   ghwho             - Show current vs required account for this repo
   ghaccounts        - List accounts + owner mappings
   ghstatus          - Check authentication status
-  ghlogin           - Legacy login (use ghadd instead)
 
 ORGANIZATION (Work):
   ghaudit           - Run organization audit script
