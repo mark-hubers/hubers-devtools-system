@@ -1104,6 +1104,16 @@ if [ -f ~/.zsh/favorites.zsh ]; then
 fi
 
 # ============================================================================
+# Project Status (auto-show on cd)
+# ============================================================================
+
+# Shows PROJECT-STATUS.md when entering project folders
+# Commands: project-status, project-status-init, pst, pst-edit
+if [ -f ~/.zsh/project-status.zsh ]; then
+  source ~/.zsh/project-status.zsh
+fi
+
+# ============================================================================
 # iTerm2: Shell Integration & Features
 # ============================================================================
 
