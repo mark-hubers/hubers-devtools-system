@@ -65,6 +65,13 @@ gp                 | git push                      || gpl             | git pull
 gco <branch>       | checkout branch               || gcob <n>     | checkout -b new
 glog               | Pretty log (30)               || gd              | git diff
 #
+#= GITHUB CLI
+ghlist             | List GitHub accounts          || ghadd           | Add account (guided)
+ghtest             | Test current account          || ghswitch        | Switch accounts
+ghauto             | Auto-switch by repo           || ghwho           | Current vs required
+ghprs              | Browse PRs (fzf)              || ghpr            | Create PR
+ghhelp             | All GitHub commands           || th github       | GitHub docs
+#
 #= KUBERNETES
 k9s                | K8s terminal UI               || kctx            | Switch context
 kns                | Switch namespace              || kgp             | get pods
