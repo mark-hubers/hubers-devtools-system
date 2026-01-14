@@ -1,16 +1,19 @@
-# 🔄 asdf Version Management Guide
+# asdf Version Management Guide
+
+> **Note:** This guide is for asdf v0.18.0+. Commands like `global`, `local`, and `shell`
+> have been replaced with `asdf set`.
 
 ## Why asdf?
 
 **asdf** is a universal version manager. Instead of using `nvm` for Node, `pyenv` for Python, `tfenv` for Terraform, etc., you use ONE tool for everything.
 
 **Key benefits:**
-- 🎯 **One tool** - Manage all languages/tools the same way
-- 📁 **Per-project versions** - `.tool-versions` files auto-switch versions
-- 🔄 **Easy switching** - Install multiple versions, switch instantly
-- 📦 **Huge plugin ecosystem** - 600+ tools supported
+- **One tool** - Manage all languages/tools the same way
+- **Per-project versions** - `.tool-versions` files auto-switch versions
+- **Easy switching** - Install multiple versions, switch instantly
+- **Huge plugin ecosystem** - 600+ tools supported
 
-## Quick Reference
+## Quick Reference (v0.18.0+)
 
 ```bash
 # See what's installed
@@ -23,10 +26,10 @@ asdf install <tool> latest      # Install latest
 asdf install <tool> 1.5.7       # Install specific version
 asdf install                    # Install all from .tool-versions
 
-# Set versions
-asdf global <tool> 1.5.7        # Set global default
-asdf local <tool> 1.5.7         # Set for current directory (creates .tool-versions)
-asdf shell <tool> 1.5.7         # Set for current shell session only
+# Set versions (NEW in v0.18.0)
+asdf set -u <tool> 1.5.7        # Set user default (~/.tool-versions)
+asdf set <tool> 1.5.7           # Set for current directory (.tool-versions)
+asdf set -p <tool> 1.5.7        # Set in parent directory's .tool-versions
 
 # Find versions
 asdf list all <tool>            # All available versions
@@ -38,18 +41,22 @@ asdf plugin list all            # All available plugins
 asdf plugin update --all        # Update all plugins
 ```
 
+### Command Changes from Earlier Versions
+
+| Old Command (pre-0.18) | New Command (0.18.0+) |
+|------------------------|----------------------|
+| `asdf global <tool> <ver>` | `asdf set -u <tool> <ver>` |
+| `asdf local <tool> <ver>` | `asdf set <tool> <ver>` |
+| `asdf shell <tool> <ver>` | *(removed - use env var instead)* |
+
 ## Tools Managed by asdf (in this setup)
 
 | Tool | Why asdf? |
 |------|-----------|
 | **terraform** | Projects often require specific TF versions |
 | **kubectl** | Match your cluster's Kubernetes version |
-| **helm** | Helm 2 vs 3, version compatibility |
-| **nodejs** | Different projects, different Node versions |
-| **python** | Python 2 vs 3, project requirements |
-| **golang** | Go version requirements |
-| **awscli** | AWS CLI v1 vs v2 |
-| **java** | JDK version requirements |
+| **java** | JDK 17 vs 21, project requirements |
+| **awscli** | AWS CLI version management |
 
 ## Common Workflows
 
@@ -59,15 +66,13 @@ asdf plugin update --all        # Update all plugins
 cd my-project
 
 # Pin versions for this project
-asdf local terraform 1.5.7
-asdf local nodejs 20.10.0
-asdf local python 3.11.7
+asdf set terraform 1.13.4
+asdf set kubectl 1.33.2
 
 # This creates .tool-versions file - commit it!
 cat .tool-versions
-# terraform 1.5.7
-# nodejs 20.10.0
-# python 3.11.7
+# terraform 1.13.4
+# kubectl 1.33.2
 ```
 
 ### Joining an Existing Project
@@ -88,35 +93,33 @@ asdf install
 asdf list all terraform | tail -20
 
 # Install new version
-asdf install terraform 1.6.0
+asdf install terraform 1.14.3
 
-# Test it
-asdf shell terraform 1.6.0    # Try in this shell only
-terraform version
+# Test it in current shell (set env var)
+ASDF_TERRAFORM_VERSION=1.14.3 terraform version
 
 # If good, make it your default
-asdf global terraform 1.6.0
+asdf set -u terraform 1.14.3
 ```
 
 ### Working with Multiple Terraform Versions
 
 ```bash
 # Install multiple versions
-asdf install terraform 1.4.6
-asdf install terraform 1.5.7
-asdf install terraform 1.6.0
+asdf install terraform 1.13.4
+asdf install terraform 1.14.3
 
-# Project A needs 1.4.x
+# Project A needs 1.13.x
 cd project-a
-asdf local terraform 1.4.6
+asdf set terraform 1.13.4
 
-# Project B needs 1.5.x
+# Project B needs 1.14.x
 cd project-b
-asdf local terraform 1.5.7
+asdf set terraform 1.14.3
 
 # Auto-switches when you cd!
-cd project-a && terraform version  # 1.4.6
-cd project-b && terraform version  # 1.5.7
+cd project-a && terraform version  # 1.13.4
+cd project-b && terraform version  # 1.14.3
 ```
 
 ## The .tool-versions File
@@ -125,43 +128,44 @@ This is the magic file that makes asdf awesome for teams:
 
 ```
 # .tool-versions
-terraform 1.5.7
-nodejs 20.10.0
-python 3.11.7
-kubectl 1.28.0
-helm 3.13.0
+terraform 1.13.4
+kubectl 1.33.2
+java temurin-17.0.17+10
+awscli 2.32.34
 ```
 
 **Best practices:**
-- ✅ Commit this file to your repo
-- ✅ Everyone on the team gets the same versions
-- ✅ CI/CD can use it too
-- ✅ Document why specific versions are pinned
+- Commit this file to your repo
+- Everyone on the team gets the same versions
+- CI/CD can use it too
+- Document why specific versions are pinned
 
-### Generating .tool-versions
+### Your Global Defaults
+
+Your user-level defaults are in `~/.tool-versions`:
 
 ```bash
-# Generate from your current global versions
-devsetup tool-versions
+# View your global defaults
+cat ~/.tool-versions
 
-# Or manually create
-echo "terraform 1.5.7" >> .tool-versions
-echo "nodejs 20.10.0" >> .tool-versions
+# Set a new global default
+asdf set -u terraform 1.13.4
 ```
 
 ## Installing via devsetup
 
 ```bash
-# Install asdf-managed tools
-devsetup add terraform     # Installs plugin + latest version
-devsetup add kubectl
-devsetup add nodejs
+# Install asdf itself
+devsetup add asdf
 
-# Install all required asdf tools at once
-devsetup install
+# Install asdf-managed tools (adds plugin + latest version)
+devsetup add terraform
+devsetup add kubectl
+devsetup add java
 
 # See what's installed
-devsetup versions
+asdf list
+asdf current
 ```
 
 ## Manual Plugin Management
@@ -182,11 +186,11 @@ asdf plugin update terraform
 
 ## Troubleshooting
 
-### "No version set for <tool>"
+### "No version set for command"
 
 ```bash
-# Set a global default
-asdf global <tool> latest
+# Set a user default
+asdf set -u <tool> latest
 
 # Or install from .tool-versions
 asdf install
@@ -202,8 +206,8 @@ brew install gpg gawk
 # For python:
 brew install openssl readline sqlite3 xz zlib
 
-# For ruby:
-brew install openssl@3 readline libyaml gmp
+# For java:
+# Usually works out of the box
 ```
 
 ### Wrong version being used
@@ -212,7 +216,7 @@ brew install openssl@3 readline libyaml gmp
 # Check where version is being set
 asdf current
 
-# Shows: terraform 1.5.7 (set by /path/to/.tool-versions)
+# Shows: terraform 1.13.4 /path/to/.tool-versions
 
 # Check your .tool-versions files
 cat .tool-versions
@@ -221,13 +225,13 @@ cat ~/.tool-versions
 
 ### asdf command not found (after install)
 
-Add to your `~/.zshrc`:
+Your `.zshrc` should have this (added by setup):
 ```bash
-# For Homebrew install
-. $(brew --prefix asdf)/libexec/asdf.sh
+# For Homebrew install (Apple Silicon)
+. /opt/homebrew/opt/asdf/libexec/asdf.sh
 
-# For git install
-. $HOME/.asdf/asdf.sh
+# For Homebrew install (Intel)
+. /usr/local/opt/asdf/libexec/asdf.sh
 ```
 
 Then: `source ~/.zshrc`
@@ -236,12 +240,12 @@ Then: `source ~/.zshrc`
 
 | Scenario | Use asdf | Use Homebrew |
 |----------|----------|--------------|
-| Need multiple versions | ✅ | ❌ |
-| Per-project versions | ✅ | ❌ |
-| Just want "latest" | Either | ✅ |
-| GUI applications | ❌ | ✅ |
-| System utilities | ❌ | ✅ |
-| Team standardization | ✅ | ❌ |
+| Need multiple versions | Yes | No |
+| Per-project versions | Yes | No |
+| Just want "latest" | Either | Yes |
+| GUI applications | No | Yes |
+| System utilities | No | Yes |
+| Team standardization | Yes | No |
 
 ## Resources
 

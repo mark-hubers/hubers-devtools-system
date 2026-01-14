@@ -6,17 +6,24 @@
 # since child scripts don't inherit parent shell aliases.
 # ============================================================================
 
-# Check if alias is defined in zshrc
+# Check if alias is defined in zshrc or aliases.d
 _alias_defined_in_config() {
     local name="$1"
-    grep -qE "^\s*alias\s+${name}=" "$HOME/.zshrc" 2>/dev/null
+    # Check .zshrc
+    grep -qE "^\s*alias\s+${name}=" "$HOME/.zshrc" 2>/dev/null && return 0
+    # Check aliases.d directory
+    grep -qE "^\s*alias\s+${name}=" "$HOME/.zsh/aliases.d"/*.zsh 2>/dev/null && return 0
+    return 1
 }
 
-# Check if function is defined in zsh config files
+# Check if function is defined in zsh config files or functions.d
 _function_defined_in_config() {
     local name="$1"
     # Check .zshrc and .zsh/*.zsh files
-    grep -qE "^${name}\(\)|^function ${name}" "$HOME/.zshrc" "$HOME/.zsh"/*.zsh 2>/dev/null
+    grep -qE "^${name}\(\)|^function ${name}" "$HOME/.zshrc" "$HOME/.zsh"/*.zsh 2>/dev/null && return 0
+    # Check functions.d directory
+    grep -qE "^${name}\(\)|^function ${name}" "$HOME/.zsh/functions.d"/*.zsh 2>/dev/null && return 0
+    return 1
 }
 
 test_aliases() {
@@ -56,7 +63,7 @@ test_aliases() {
 
     # Modern tool aliases (only if tools installed)
     if has_command eza; then
-        if grep -q "alias ls=" "$HOME/.zshrc" 2>/dev/null; then
+        if _alias_defined_in_config "ls"; then
             pass_test "ls aliased to eza"
         else
             skip_test "ls not aliased to eza"
@@ -66,7 +73,7 @@ test_aliases() {
     fi
 
     if has_command bat; then
-        if grep -q "alias cat=" "$HOME/.zshrc" 2>/dev/null; then
+        if _alias_defined_in_config "cat"; then
             pass_test "cat aliased to bat"
         else
             skip_test "cat not aliased to bat"
@@ -75,14 +82,14 @@ test_aliases() {
         skip_test "bat not installed"
     fi
 
-    # Key utility functions (check in .zshrc)
-    if grep -qE "^mkcd\(\)|^function mkcd" "$HOME/.zshrc" 2>/dev/null; then
+    # Key utility functions (check in .zshrc or functions.d)
+    if _function_defined_in_config "mkcd"; then
         pass_test "mkcd function defined (mkdir + cd)"
     else
         fail_test "mkcd function not defined"
     fi
 
-    if grep -qE "^extract\(\)|^function extract" "$HOME/.zshrc" 2>/dev/null; then
+    if _function_defined_in_config "extract"; then
         pass_test "extract function defined (archive extraction)"
     else
         fail_test "extract function not defined"
@@ -101,8 +108,8 @@ test_aliases() {
         fail_test "bm function not defined"
     fi
 
-    # myip is in .zshrc, not network-toolkit.zsh
-    if grep -qE "^myip\(\)|^function myip" "$HOME/.zshrc" 2>/dev/null; then
+    # myip is in functions.d/_devtools_utils.zsh or .zshrc
+    if _function_defined_in_config "myip"; then
         pass_test "myip function defined (show IP addresses)"
     else
         fail_test "myip function not defined"

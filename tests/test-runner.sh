@@ -42,6 +42,8 @@ run_all_tests() {
     test_favorites
     test_plugins
     test_config
+    test_asdf
+    test_functions
 
     # Print summary and exit with appropriate code
     print_test_summary
@@ -78,6 +80,12 @@ run_single_test() {
         config|preservation)
             test_config
             ;;
+        asdf|versions)
+            test_asdf
+            ;;
+        functions|funcs)
+            test_functions
+            ;;
         *)
             echo "Unknown test: $test_name"
             echo ""
@@ -88,6 +96,8 @@ run_single_test() {
             echo "  favorites   - Favorites system"
             echo "  plugins     - Plugin detection"
             echo "  config      - Configuration preservation"
+            echo "  asdf        - asdf version manager"
+            echo "  functions   - Modular functions (.d directories)"
             echo ""
             exit 1
             ;;

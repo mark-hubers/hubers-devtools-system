@@ -175,14 +175,14 @@ ensure_yq() {
 # Parse tool from YAML
 get_tools_in_category() {
     local category="$1"
-    yq eval ".$category[].name" "$TOOLS_FILE" 2>/dev/null || echo ""
+    yq eval '.'$category'[].name' "$TOOLS_FILE" 2>/dev/null || echo ""
 }
 
 get_tool_field() {
     local category="$1"
     local name="$2"
     local field="$3"
-    yq eval ".$category[] | select(.name == \"$name\") | .$field" "$TOOLS_FILE" 2>/dev/null || echo ""
+    yq eval '.'$category'[] | select(.name == "'$name'") | .'$field "$TOOLS_FILE" 2>/dev/null || echo ""
 }
 
 get_all_categories() {
@@ -402,7 +402,7 @@ install_tool() {
     # Run post-install commands
     if [[ -n "$post_install" && "$post_install" != "null" ]]; then
         echo "  Running post-install..."
-        yq eval ".$category[] | select(.name == \"$name\") | .post_install[]" "$TOOLS_FILE" 2>/dev/null | while read cmd; do
+        yq eval '.'$category'[] | select(.name == "'$name'") | .post_install[]' "$TOOLS_FILE" 2>/dev/null | while read cmd; do
             if [[ -n "$cmd" && "$cmd" != "null" ]]; then
                 echo "    → $cmd"
                 eval "$cmd" 2>&1 | while read line; do echo "      $line"; done || true
@@ -504,7 +504,7 @@ cmd_search() {
     for category in $(get_all_categories); do
         for tool in $(get_tools_in_category "$category"); do
             local desc=$(get_tool_field "$category" "$tool" "description")
-            if [[ "$tool" == *"$query"* ]] || [[ "${desc,,}" == *"${query,,}"* ]]; then
+            if [[ "$tool" == *"$query"* ]] || [[ "${(L)desc}" == *"${(L)query}"* ]]; then
                 ((found++))
                 local indicator="○"
                 local indicator_color="$YELLOW"
@@ -816,6 +816,7 @@ cmd_help() {
     echo ""
     echo "  outdated       Show outdated packages"
     echo "  update         Update all packages (brew + asdf)"
+    echo "  sync           Sync shell config files (.d directories)"
     echo ""
     echo "  versions       Show installed tool versions (asdf + brew)"
     echo "  asdf-update    Update all asdf plugins"
@@ -852,10 +853,79 @@ cmd_help() {
 # Main
 # ============================================================================
 
+# ============================================================================
+# Sync managed shell config files (.d directories)
+# ============================================================================
+cmd_sync() {
+    print_header
+    print_section "Syncing Shell Configuration"
+
+    local src_dir="$SCRIPT_DIR/terminal-config/home/.zsh"
+    local dest_dir="$HOME/.zsh"
+
+    # Create directories if needed
+    mkdir -p "$dest_dir"/{aliases.d,functions.d,path.d}
+
+    local synced=0
+
+    # Sync aliases.d
+    if [[ -d "$src_dir/aliases.d" ]]; then
+        for f in "$src_dir/aliases.d"/_devtools_*.zsh(N); do
+            [[ -f "$f" ]] || continue
+            cp "$f" "$dest_dir/aliases.d/"
+            ((synced++))
+        done
+    fi
+
+    # Sync functions.d
+    if [[ -d "$src_dir/functions.d" ]]; then
+        for f in "$src_dir/functions.d"/_devtools_*.zsh(N); do
+            [[ -f "$f" ]] || continue
+            cp "$f" "$dest_dir/functions.d/"
+            ((synced++))
+        done
+    fi
+
+    # Sync path.d
+    if [[ -d "$src_dir/path.d" ]]; then
+        for f in "$src_dir/path.d"/_devtools_*.zsh(N); do
+            [[ -f "$f" ]] || continue
+            cp "$f" "$dest_dir/path.d/"
+            ((synced++))
+        done
+    fi
+
+    # Create user template files if they don't exist
+    for dir in aliases.d functions.d path.d; do
+        local template="$dest_dir/$dir/my-custom.zsh"
+        if [[ ! -f "$template" ]]; then
+            cat > "$template" << 'EOF'
+#!/bin/zsh
+# ============================================================================
+# My Custom Configuration
+# ============================================================================
+# This file is for YOUR personal customizations.
+# It will NOT be overwritten by devsetup sync.
+# Add your own aliases, functions, or PATH additions here.
+# ============================================================================
+
+EOF
+            echo "  Created template: ~/${dir}/my-custom.zsh"
+        fi
+    done
+
+    success "Synced $synced managed config files"
+    echo ""
+    echo "Managed files (_devtools_*) are updated by: devsetup sync"
+    echo "Your files (my-custom.zsh) are never touched."
+    echo ""
+    echo "Reload your shell: source ~/.zshrc"
+}
+
 main() {
     local cmd="${1:-}"
     shift 2>/dev/null || true
-    
+
     case "$cmd" in
         "")              cmd_interactive ;;
         check)           cmd_check ;;
@@ -863,6 +933,7 @@ main() {
         install-all)     cmd_install_all ;;
         outdated)        cmd_outdated ;;
         update)          cmd_update ;;
+        sync)            cmd_sync ;;
         add)             cmd_add "$@" ;;
         remove)          brew uninstall "$@" ;;
         search)          cmd_search "$@" ;;
