@@ -2,11 +2,15 @@
 # ============================================================================
 # Favorites System Tests
 # ============================================================================
+# Note: Tests check if functions are DEFINED in config files,
+# since child scripts don't inherit parent shell functions.
+# ============================================================================
 
 test_favorites() {
     step "Favorites System"
 
     local favorites_file="${HOME}/.zsh/my-favorites.txt"
+    local favorites_zsh="${HOME}/.zsh/favorites.zsh"
 
     # Favorites file exists
     if [[ -f "$favorites_file" ]]; then
@@ -22,11 +26,41 @@ test_favorites() {
         skip_test "Favorites file not created yet (run favedit)"
     fi
 
-    # Favorites functions
-    assert_function_exists "fav" "fav command (show favorites)"
-    assert_function_exists "favedit" "favedit command (edit favorites)"
-    assert_function_exists "favon" "favon command (enable startup display)"
-    assert_function_exists "favoff" "favoff command (disable startup display)"
+    # Favorites functions (check in favorites.zsh)
+    if [[ -f "$favorites_zsh" ]]; then
+        if grep -qE "^fav\(\)|^function fav\b" "$favorites_zsh" 2>/dev/null; then
+            pass_test "fav command defined (show favorites)"
+        else
+            fail_test "fav command not defined"
+        fi
+
+        if grep -qE "^favedit\(\)|^function favedit" "$favorites_zsh" 2>/dev/null; then
+            pass_test "favedit command defined (edit favorites)"
+        else
+            fail_test "favedit command not defined"
+        fi
+
+        if grep -qE "^favon\(\)|^function favon" "$favorites_zsh" 2>/dev/null; then
+            pass_test "favon command defined (enable startup)"
+        else
+            fail_test "favon command not defined"
+        fi
+
+        if grep -qE "^favoff\(\)|^function favoff" "$favorites_zsh" 2>/dev/null; then
+            pass_test "favoff command defined (disable startup)"
+        else
+            fail_test "favoff command not defined"
+        fi
+
+        # Extension favorites discovery
+        if grep -qE "_show_extension_favorites\(\)|function _show_extension_favorites" "$favorites_zsh" 2>/dev/null; then
+            pass_test "Extension favorites loader defined"
+        else
+            skip_test "Extension favorites loader not found"
+        fi
+    else
+        fail_test "favorites.zsh not found"
+    fi
 
     # Favorites toggle file
     if [[ -f "${HOME}/.zsh/.favorites_enabled" ]]; then
@@ -34,12 +68,5 @@ test_favorites() {
     else
         info "Favorites disabled (run favon to enable)"
         ((TEST_PASSED++))
-    fi
-
-    # Extension favorites discovery
-    if typeset -f _show_extension_favorites &>/dev/null; then
-        pass_test "Extension favorites loader available"
-    else
-        skip_test "Extension favorites loader not found"
     fi
 }

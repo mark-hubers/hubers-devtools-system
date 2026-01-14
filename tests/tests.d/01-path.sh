@@ -2,6 +2,9 @@
 # ============================================================================
 # PATH Verification Tests
 # ============================================================================
+# Note: Some PATH checks verify file existence since child scripts
+# don't inherit the full PATH from parent shell.
+# ============================================================================
 
 test_path() {
     step "PATH Configuration"
@@ -15,13 +18,18 @@ test_path() {
         fi
     fi
 
-    # devsetup command findable
-    local devsetup_path
-    devsetup_path=$(command -v devsetup 2>/dev/null)
-    if [[ -n "$devsetup_path" ]]; then
-        pass_test "devsetup command found at: $devsetup_path"
+    # devsetup command - check file exists and .zshrc adds it to PATH
+    local devsetup_path="$DEVTOOLS_DIR/bin/devsetup"
+    if [[ -x "$devsetup_path" ]]; then
+        pass_test "devsetup command exists: $devsetup_path"
+        # Also verify .zshrc adds bin/ to PATH
+        if grep -q 'PATH="$possible_location/bin:$PATH"' "$HOME/.zshrc" 2>/dev/null; then
+            pass_test "devsetup bin/ added to PATH in .zshrc"
+        else
+            skip_test "devsetup PATH setup not found in .zshrc"
+        fi
     else
-        fail_test "devsetup command not in PATH"
+        fail_test "devsetup command not found"
     fi
 
     # ~/.local/bin for user tools (Claude Code, etc.)

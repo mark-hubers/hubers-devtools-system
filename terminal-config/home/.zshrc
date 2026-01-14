@@ -90,6 +90,7 @@ fi
 # Auto-detect Hubers Dev Tools framework location
 # Checks common locations in order of preference
 for possible_location in \
+  "$HOME/my-tools/hubers-devtools-system" \
   "$HOME/hubers-devtools-system" \
   "$HOME/Projects/hubers-devtools-system" \
   "$HOME/repos/hubers-devtools-system" \
