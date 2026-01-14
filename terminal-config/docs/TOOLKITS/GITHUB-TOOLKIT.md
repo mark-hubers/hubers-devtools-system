@@ -40,7 +40,7 @@ Run `ghadd` for guided setup:
 
 The `ghauto` command switches accounts based on repo owner.
 
-**Configure mappings in `~/.zshrc_hubers`** (private, not in repo):
+**Configure mappings in `~/.zshrc_local`** (private, not in repo):
 
 ```zsh
 # Add your org -> account mappings

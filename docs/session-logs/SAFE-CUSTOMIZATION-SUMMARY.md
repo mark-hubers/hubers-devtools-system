@@ -6,7 +6,7 @@ A **safe customization system** that preserves your personal settings across rei
 
 ---
 
-## 🔑 The Solution: ~/.zshrc_hubers
+## 🔑 The Solution: ~/.zshrc_local
 
 ### The Problem You Had
 - Editing `.zshrc` directly gets overwritten on reinstall
@@ -14,7 +14,7 @@ A **safe customization system** that preserves your personal settings across rei
 - Wanted a marker system or separate file
 
 ### What We Implemented
-Created **`~/.zshrc_hubers`** - a personal customization file that is:
+Created **`~/.zshrc_local`** - a personal customization file that is:
 
 ✅ **Never overwritten** by the installer  
 ✅ **Automatically sourced** at the end of `.zshrc`  
@@ -25,10 +25,10 @@ Created **`~/.zshrc_hubers`** - a personal customization file that is:
 
 ## 📂 Files Created/Modified
 
-### NEW: .zshrc_hubers.template
-**Location:** `/terminal-config/home/.zshrc_hubers.template`
+### NEW: .zshrc_local.template
+**Location:** `/terminal-config/home/.zshrc_local.template`
 
-**Purpose:** Template used by installer to create `~/.zshrc_hubers`
+**Purpose:** Template used by installer to create `~/.zshrc_local`
 
 **Contents:**
 - Helpful comments explaining the file's purpose
@@ -45,16 +45,16 @@ Created **`~/.zshrc_hubers`** - a personal customization file that is:
 # ============================================================================
 # USER CUSTOMIZATIONS - DO NOT EDIT ABOVE THIS LINE
 # ============================================================================
-# This section sources your personal customizations from ~/.zshrc_hubers
+# This section sources your personal customizations from ~/.zshrc_local
 # 
 # Add YOUR custom aliases, functions, and configurations to:
-#   ~/.zshrc_hubers
+#   ~/.zshrc_local
 # 
 # That file will NEVER be overwritten by the installer...
 # ============================================================================
 
-if [ -f ~/.zshrc_hubers ]; then
-  source ~/.zshrc_hubers
+if [ -f ~/.zshrc_local ]; then
+  source ~/.zshrc_local
 fi
 ```
 
@@ -65,13 +65,13 @@ fi
 ```bash
 # Create personal customizations file if it doesn't exist
 echo "🎨 Checking for personal customizations file..."
-if [ ! -f ~/.zshrc_hubers ]; then
-  echo "   Creating ~/.zshrc_hubers (your personal customizations)"
-  cp home/.zshrc_hubers.template ~/.zshrc_hubers
+if [ ! -f ~/.zshrc_local ]; then
+  echo "   Creating ~/.zshrc_local (your personal customizations)"
+  cp home/.zshrc_local.template ~/.zshrc_local
   echo "   ✅ Created with helpful template"
   echo "   📝 This file will NEVER be overwritten"
 else
-  echo "   ✅ ~/.zshrc_hubers exists (preserving your customizations)"
+  echo "   ✅ ~/.zshrc_local exists (preserving your customizations)"
   echo "   📝 Your personal customizations are safe!"
 fi
 ```
@@ -79,7 +79,7 @@ fi
 **Updated "Next steps" to mention:**
 ```
 5. Add your personal customizations:
-   vim ~/.zshrc_hubers
+   vim ~/.zshrc_local
    (This file is NEVER overwritten by reinstalls)
 ```
 
@@ -87,7 +87,7 @@ fi
 **Location:** `/terminal-config/docs/SETUP/CUSTOMIZATION.md`
 
 **Major rewrite to:**
-- Feature `~/.zshrc_hubers` as the PRIMARY customization method
+- Feature `~/.zshrc_local` as the PRIMARY customization method
 - Explain why it's better than editing main `.zshrc`
 - Show what files are safe vs overwritten on reinstall
 - Provide clear examples for all use cases
@@ -99,16 +99,16 @@ fi
 ### First Installation
 
 1. User runs `./INSTALL.sh`
-2. Installer checks: `Does ~/.zshrc_hubers exist?`
-3. If NO → Copy template to `~/.zshrc_hubers`
+2. Installer checks: `Does ~/.zshrc_local exist?`
+3. If NO → Copy template to `~/.zshrc_local`
 4. If YES → Skip (preserve existing customizations)
-5. `.zshrc` is installed and sources `~/.zshrc_hubers` at the end
+5. `.zshrc` is installed and sources `~/.zshrc_local` at the end
 
 ### User Adds Customizations
 
 ```bash
 # User edits their safe file:
-vim ~/.zshrc_hubers
+vim ~/.zshrc_local
 
 # Adds their stuff:
 alias myproject='cd ~/Projects/app'
@@ -121,9 +121,9 @@ export MY_API_KEY="secret"
 
 1. User runs `./INSTALL.sh` again (after update)
 2. Main `.zshrc` is backed up and overwritten (expected)
-3. Installer checks: `Does ~/.zshrc_hubers exist?`
+3. Installer checks: `Does ~/.zshrc_local exist?`
 4. **YES** → Installer says "preserving your customizations" and **DOES NOT TOUCH IT**
-5. New `.zshrc` still sources `~/.zshrc_hubers` at the end
+5. New `.zshrc` still sources `~/.zshrc_local` at the end
 6. **User's customizations are preserved!** ✅
 
 ---
@@ -144,7 +144,7 @@ vim ~/.zshrc
 ### After (The Solution)
 ```bash
 # User edits safe file
-vim ~/.zshrc_hubers
+vim ~/.zshrc_local
 # Adds aliases...
 
 # Later, runs installer
@@ -163,14 +163,14 @@ myproject  # ← User's custom alias still works!
 | File | Reinstall Behavior |
 |------|-------------------|
 | `~/.zshrc` | ⚠️ **Overwritten** (backed up first) |
-| `~/.zshrc_hubers` | ✅ **NEVER TOUCHED** |
+| `~/.zshrc_local` | ✅ **NEVER TOUCHED** |
 | `~/.zsh/my-favorites.txt` | ✅ **NEVER TOUCHED** |
 | `~/.zsh-bookmarks` | ✅ **NEVER TOUCHED** |
 | `~/.zsh/*.zsh` toolkits | ⚠️ Overwritten (framework files) |
 | `~/.zsh/docs/` | ⚠️ Overwritten (framework docs) |
 
 **The Three Safe Files:**
-1. `~/.zshrc_hubers` ← Your aliases/functions
+1. `~/.zshrc_local` ← Your aliases/functions
 2. `~/.zsh/my-favorites.txt` ← Your startup display (edit with `favedit`)
 3. `~/.zsh-bookmarks` ← Your directory bookmarks (managed by `bm`)
 
@@ -178,7 +178,7 @@ myproject  # ← User's custom alias still works!
 
 ## 💡 Design Decisions
 
-### Why .zshrc_hubers?
+### Why .zshrc_local?
 - **Naming:** "hubers" clearly indicates it's part of this framework
 - **Location:** In home directory (not buried in `.zsh/`)
 - **Convention:** Follows zsh convention of dot files in home
@@ -199,7 +199,7 @@ myproject  # ← User's custom alias still works!
 
 ### Files Updated to Explain This:
 
-1. **SETUP/CUSTOMIZATION.md** - Major rewrite featuring `.zshrc_hubers` first
+1. **SETUP/CUSTOMIZATION.md** - Major rewrite featuring `.zshrc_local` first
 2. **INSTALL.sh output** - Mentions the file in "Next steps"
 3. **TROUBLESHOOTING.md** - Could be updated to mention this (not done yet)
 
@@ -208,7 +208,7 @@ myproject  # ← User's custom alias still works!
 **DO THIS:**
 ```bash
 # ✅ Edit your safe customization file
-vim ~/.zshrc_hubers
+vim ~/.zshrc_local
 ```
 
 **NOT THIS:**
@@ -223,21 +223,21 @@ vim ~/.zshrc  # Gets overwritten!
 
 ### First Install Test
 - [ ] Run `./INSTALL.sh`
-- [ ] Check that `~/.zshrc_hubers` was created
+- [ ] Check that `~/.zshrc_local` was created
 - [ ] Verify it contains the template with examples
 - [ ] Edit the file and add an alias
 - [ ] Open new terminal
 - [ ] Test that the alias works
 
 ### Reinstall Test
-- [ ] Add custom alias to `~/.zshrc_hubers`
+- [ ] Add custom alias to `~/.zshrc_local`
 - [ ] Run `./INSTALL.sh` again
-- [ ] Verify `~/.zshrc_hubers` was NOT overwritten
+- [ ] Verify `~/.zshrc_local` was NOT overwritten
 - [ ] Open new terminal
 - [ ] Verify custom alias still works
 
 ### Override Test
-- [ ] Add override to `~/.zshrc_hubers` (e.g., override an alias)
+- [ ] Add override to `~/.zshrc_local` (e.g., override an alias)
 - [ ] Open new terminal
 - [ ] Verify override takes precedence
 
@@ -258,7 +258,7 @@ This complements the existing safe systems:
 - Never overwritten ✅
 
 **3. Personal Customizations (NEW!)**
-- File: `~/.zshrc_hubers`
+- File: `~/.zshrc_local`
 - Edit with: any editor
 - Never overwritten ✅
 
@@ -268,7 +268,7 @@ This complements the existing safe systems:
 
 ### Web Developer
 ```bash
-# In ~/.zshrc_hubers
+# In ~/.zshrc_local
 alias dev='npm run dev'
 alias deploy='npm run build && rsync dist/ server:/var/www/'
 export NODE_ENV=development
@@ -276,7 +276,7 @@ export NODE_ENV=development
 
 ### DevOps Engineer
 ```bash
-# In ~/.zshrc_hubers
+# In ~/.zshrc_local
 alias k=kubectl
 alias tf=terraform
 
@@ -288,7 +288,7 @@ prod() {
 
 ### Multiple Projects
 ```bash
-# In ~/.zshrc_hubers
+# In ~/.zshrc_local
 alias proj1='cd ~/Projects/project1 && code .'
 alias proj2='cd ~/Projects/project2 && code .'
 alias proj3='cd ~/Projects/project3 && code .'
@@ -323,7 +323,7 @@ alias proj3='cd ~/Projects/project3 && code .'
 1. **Backup command** - `hubers-backup` to backup all safe files
 2. **Restore command** - `hubers-restore` to restore from backup
 3. **Template examples** - Add more real-world examples to template
-4. **Migration tool** - Script to move customizations from old `.zshrc` to `.zshrc_hubers`
+4. **Migration tool** - Script to move customizations from old `.zshrc` to `.zshrc_local`
 
 ### Not Needed Now:
 - Current system is clean and simple
@@ -335,7 +335,7 @@ alias proj3='cd ~/Projects/project3 && code .'
 ## 📦 Files Summary
 
 **New Files:**
-- `/terminal-config/home/.zshrc_hubers.template` (47 lines)
+- `/terminal-config/home/.zshrc_local.template` (47 lines)
 
 **Modified Files:**
 - `/terminal-config/home/.zshrc` (+19 lines at end)

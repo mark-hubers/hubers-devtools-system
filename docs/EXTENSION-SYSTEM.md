@@ -118,7 +118,7 @@ _my_extension_favorites()   # Good
 Never touch:
 - `~/.zshrc`
 - `~/.zsh/*.zsh` (except extensions.d/)
-- `~/.zshrc_hubers`
+- `~/.zshrc_local`
 
 ### 4. Provide Uninstall
 
@@ -138,7 +138,7 @@ source ~/.zshrc
     ├── Devtools toolkits
     ├── ~/.zsh/extensions.d/*.zsh  ← YOUR EXTENSION
     ├── Favorites display + extension favorites
-    └── ~/.zshrc_hubers            ← User customizations (last)
+    └── ~/.zshrc_local            ← User customizations (last)
 ```
 
 **User customizations always win** - they load last and can override anything.

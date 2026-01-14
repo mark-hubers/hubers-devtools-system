@@ -436,14 +436,14 @@ GH_DIR_ACCOUNT_MAP=(
 
 # Default org per account (for work/enterprise accounts)
 # When using ghrepos, ghclone, etc., use this org by default
-# Add your mappings in ~/.zshrc_hubers (private)
+# Add your mappings in ~/.zshrc_local (private)
 typeset -gA GH_ACCOUNT_DEFAULT_ORG
 GH_ACCOUNT_DEFAULT_ORG=(
   # "work-account"  "default-org"   # Example: work account defaults to this org
 )
 
 # Account descriptions (email, label, etc. for display)
-# Makes ghlist output clearer - add in ~/.zshrc_hubers (private)
+# Makes ghlist output clearer - add in ~/.zshrc_local (private)
 typeset -gA GH_ACCOUNT_LABEL
 GH_ACCOUNT_LABEL=(
   # "account-name"  "email@example.com (personal)"
@@ -451,9 +451,9 @@ GH_ACCOUNT_LABEL=(
 )
 
 # Shorthand aliases for accounts (for gh-as command)
-# Add in ~/.zshrc_hubers: GH_ACCOUNT_ALIAS+=("work" "My-Work-Account")
+# Add in ~/.zshrc_local: GH_ACCOUNT_ALIAS+=("work" "My-Work-Account")
 typeset -gA GH_ACCOUNT_ALIAS
-# Only set defaults if not already defined (preserves ~/.zshrc_hubers values)
+# Only set defaults if not already defined (preserves ~/.zshrc_local values)
 (( ${#GH_ACCOUNT_ALIAS} == 0 )) && GH_ACCOUNT_ALIAS=(
   # "work"      "Work-Account-Name"
   # "personal"  "Personal-Account-Name"
@@ -478,7 +478,7 @@ gh-as() {
     echo "  gh-as work gh repo list your-org"
     echo "  gh-as personal gh api user"
     echo ""
-    echo "Aliases (set in ~/.zshrc_hubers):"
+    echo "Aliases (set in ~/.zshrc_local):"
     for alias acct in ${(kv)GH_ACCOUNT_ALIAS}; do
       echo "  $alias -> $acct"
     done

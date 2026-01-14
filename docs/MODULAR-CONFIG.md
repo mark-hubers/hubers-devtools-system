@@ -128,6 +128,12 @@ Each function file has a self-test function (e.g., `_test_devtools_fzf`) that ve
 
 ## Troubleshooting
 
+### Check for conflicts first
+```bash
+devsetup validate
+```
+This detects alias/function naming conflicts that cause "defining function based on alias" errors.
+
 ### Function/alias not working after sync
 ```bash
 source ~/.zshrc

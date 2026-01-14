@@ -39,10 +39,42 @@ fi
 # Create directories
 mkdir -p ~/.zsh/previews
 mkdir -p ~/.zsh/extensions.d   # External projects install here (functionality + favorites)
+mkdir -p ~/.zsh/aliases.d      # Modular alias definitions
+mkdir -p ~/.zsh/functions.d    # Modular function definitions
+mkdir -p ~/.zsh/path.d         # Modular PATH additions
 mkdir -p ~/.cache
 
 echo "📥 Installing files..."
+
+# Preserve content below the marker line from old .zshrc
+PRESERVE_MARKER="# PRESERVE BELOW"
+PRESERVED_CONTENT=""
+if [[ -f ~/.zshrc ]] && grep -q "$PRESERVE_MARKER" ~/.zshrc; then
+    echo "📋 Preserving appended content from old .zshrc..."
+    # Get everything after the PRESERVE BELOW section (skip marker, divider, and comment)
+    PRESERVED_CONTENT=$(awk "/$PRESERVE_MARKER/{found=1; skip=2; next} found && skip>0{skip--; next} found{print}" ~/.zshrc)
+    if [[ -n "$PRESERVED_CONTENT" ]]; then
+        echo "   Found content to preserve (iTerm2, nvm, etc.)"
+    fi
+fi
+
 cp home/.zshrc ~/
+
+# Append preserved content back
+if [[ -n "$PRESERVED_CONTENT" ]]; then
+    echo "$PRESERVED_CONTENT" >> ~/.zshrc
+    echo "   ✅ Preserved content restored to .zshrc"
+fi
+
+# Sync modular config files (only _devtools_* managed files)
+echo "🔧 Installing modular configs..."
+for dir in aliases.d functions.d path.d; do
+  if [[ -d "home/.zsh/$dir" ]]; then
+    for f in home/.zsh/$dir/_devtools_*.zsh; do
+      [[ -f "$f" ]] && cp "$f" ~/.zsh/$dir/
+    done
+  fi
+done
 cp home/.zsh/*.zsh ~/.zsh/
 cp home/.zsh/_kubectl_static ~/.zsh/
 cp home/.zsh/previews/*.zsh ~/.zsh/previews/
@@ -62,14 +94,14 @@ fi
 # Create personal customizations file if it doesn't exist
 # ============================================================================
 echo "🎨 Checking for personal customizations file..."
-if [ ! -f ~/.zshrc_hubers ]; then
-  echo "   Creating ~/.zshrc_hubers (your personal customizations)"
-  cp home/.zshrc_hubers.template ~/.zshrc_hubers
-  echo "   ✅ Created ~/.zshrc_hubers with helpful template"
+if [ ! -f ~/.zshrc_local ]; then
+  echo "   Creating ~/.zshrc_local (your personal customizations)"
+  cp home/.zshrc_local.template ~/.zshrc_local
+  echo "   ✅ Created ~/.zshrc_local with helpful template"
   echo "   📝 This file will NEVER be overwritten by the installer"
   echo "   📝 Add your custom aliases, functions, and configs there!"
 else
-  echo "   ✅ ~/.zshrc_hubers exists (preserving your customizations)"
+  echo "   ✅ ~/.zshrc_local exists (preserving your customizations)"
   echo "   📝 Your personal customizations are safe and untouched!"
 fi
 
@@ -193,12 +225,12 @@ echo "  4. Customize your startup display:"
 echo "     favedit"
 echo ""
 echo "  5. Add your personal customizations:"
-echo "     vim ~/.zshrc_hubers"
+echo "     vim ~/.zshrc_local"
 echo "     (This file is NEVER overwritten by reinstalls)"
 echo ""
 echo "📚 Documentation: ~/.zsh/docs/"
 echo "🔧 Tool config:   $FRAMEWORK_DIR/config/tools.yaml"
-echo "⚙️  Personal:     ~/.zshrc_hubers (your custom aliases/functions)"
+echo "⚙️  Personal:     ~/.zshrc_local (your custom aliases/functions)"
 echo ""
 echo "🎉 Enjoy your legendary terminal!"
 echo ""

@@ -30,7 +30,7 @@ Each file contains:
 - `~/.zsh/*.zsh`
 
 ### User owns:
-- `~/.zshrc_hubers` (personal customizations)
+- `~/.zshrc_local` (personal customizations)
 - `~/.zsh/extensions.d/*` (external projects)
 
 ---
@@ -53,7 +53,7 @@ Each file contains:
     ├── Devtools
     ├── ~/.zsh/extensions.d/*.zsh  ← External projects
     ├── Favorites + extension favorites
-    └── ~/.zshrc_hubers            ← User customizations (last)
+    └── ~/.zshrc_local            ← User customizations (last)
 ```
 
 ---

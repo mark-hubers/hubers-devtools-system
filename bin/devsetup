@@ -817,6 +817,7 @@ cmd_help() {
     echo "  outdated       Show outdated packages"
     echo "  update         Update all packages (brew + asdf)"
     echo "  sync           Sync shell config files (.d directories)"
+    echo "  validate       Check for alias/function conflicts"
     echo ""
     echo "  versions       Show installed tool versions (asdf + brew)"
     echo "  asdf-update    Update all asdf plugins"
@@ -922,6 +923,126 @@ EOF
     echo "Reload your shell: source ~/.zshrc"
 }
 
+# ============================================================================
+# Validate shell config for conflicts
+# ============================================================================
+cmd_validate() {
+    print_header
+    print_section "Validating Shell Configuration"
+    echo ""
+
+    local has_issues=0
+
+    # Get all alias names
+    local aliases=()
+    local files=(
+        "$HOME/.zshrc"
+        "$HOME/.zsh/aliases.d"/*.zsh(N)
+        "$HOME/.zsh"/*.zsh(N)
+        "$HOME/.zsh/extensions.d"/*.zsh(N)
+    )
+    for f in "${files[@]}"; do
+        [[ -f "$f" ]] && while read -r name; do
+            [[ -n "$name" ]] && aliases+=("$name")
+        done < <(grep -oE "^\s*alias\s+[a-zA-Z0-9_-]+=" "$f" 2>/dev/null | sed 's/.*alias\s*//' | sed 's/=//')
+    done
+
+    # Get all function names
+    local functions=()
+    local func_files=(
+        "$HOME/.zshrc"
+        "$HOME/.zsh/functions.d"/*.zsh(N)
+        "$HOME/.zsh"/*.zsh(N)
+        "$HOME/.zsh/extensions.d"/*.zsh(N)
+    )
+    for f in "${func_files[@]}"; do
+        [[ -f "$f" ]] && while read -r name; do
+            [[ -n "$name" ]] && functions+=("$name")
+        done < <(grep -oE "^[a-zA-Z0-9_-]+\(\)" "$f" 2>/dev/null | sed 's/()//')
+    done
+
+    # Find conflicts (names that are both alias and function)
+    local conflicts=()
+    for alias_name in "${aliases[@]}"; do
+        for func_name in "${functions[@]}"; do
+            if [[ "$alias_name" == "$func_name" ]]; then
+                conflicts+=("$alias_name")
+            fi
+        done
+    done
+    conflicts=($(printf '%s\n' "${conflicts[@]}" | sort -u))
+
+    if [[ ${#conflicts[@]} -gt 0 ]]; then
+        has_issues=1
+        warning "Alias/function name conflicts detected!"
+        echo ""
+        echo "  These names are defined as BOTH alias AND function:"
+        for name in "${conflicts[@]}"; do
+            echo "    - $name"
+        done
+        echo ""
+        echo "  This causes: 'defining function based on alias' error"
+        echo ""
+        echo "  Fix: Add 'unalias NAME 2>/dev/null' before the function"
+        echo "  Find: grep -r 'alias $name=' ~/.zsh/"
+        echo "        grep -r '^$name()' ~/.zsh/"
+        echo ""
+    else
+        success "No alias/function conflicts"
+    fi
+
+    # Check for duplicate aliases
+    local all_aliases=$(for f in "${files[@]}"; do
+        [[ -f "$f" ]] && grep -oE "^\s*alias\s+[a-zA-Z0-9_-]+=" "$f" 2>/dev/null | sed 's/.*alias\s*//' | sed 's/=//'
+    done)
+    local duplicates=$(echo "$all_aliases" | sort | uniq -d)
+
+    if [[ -n "$duplicates" ]]; then
+        has_issues=1
+        warning "Duplicate alias definitions!"
+        echo ""
+        echo "  These aliases are defined multiple times:"
+        echo "$duplicates" | while read -r name; do
+            [[ -n "$name" ]] && echo "    - $name"
+        done
+        echo ""
+        echo "  Find: grep -r 'alias NAME=' ~/.zsh/"
+        echo ""
+    else
+        success "No duplicate aliases"
+    fi
+
+    # Syntax check on config files
+    local syntax_errors=0
+    for f in "$HOME/.zsh/functions.d"/_devtools_*.zsh(N); do
+        if ! zsh -n "$f" 2>/dev/null; then
+            warning "Syntax error in: ${f/$HOME/~}"
+            syntax_errors=1
+        fi
+    done
+    for f in "$HOME/.zsh/aliases.d"/_devtools_*.zsh(N); do
+        if ! zsh -n "$f" 2>/dev/null; then
+            warning "Syntax error in: ${f/$HOME/~}"
+            syntax_errors=1
+        fi
+    done
+
+    if [[ $syntax_errors -eq 0 ]]; then
+        success "All config files pass syntax check"
+    else
+        has_issues=1
+    fi
+
+    echo ""
+    if [[ $has_issues -eq 0 ]]; then
+        success "Shell configuration is valid!"
+    else
+        warning "Issues found - fix them to prevent shell startup errors"
+    fi
+
+    return $has_issues
+}
+
 main() {
     local cmd="${1:-}"
     shift 2>/dev/null || true
@@ -934,6 +1055,7 @@ main() {
         outdated)        cmd_outdated ;;
         update)          cmd_update ;;
         sync)            cmd_sync ;;
+        validate)        cmd_validate ;;
         add)             cmd_add "$@" ;;
         remove)          brew uninstall "$@" ;;
         search)          cmd_search "$@" ;;

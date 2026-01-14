@@ -98,11 +98,11 @@ Run `./setup.sh` again and it will offer to set up new plugins.
 
 ## Personal Customizations
 
-Your personal settings go in `~/.zshrc_hubers` - this file is **never overwritten** by updates:
+Your personal settings go in `~/.zshrc_local` - this file is **never overwritten** by updates:
 
 ```bash
 # Edit your personal config
-vim ~/.zshrc_hubers
+vim ~/.zshrc_local
 
 # Re-run setup (your customizations are preserved)
 cd ~/my-tools/hubers-devtools-system/terminal-config

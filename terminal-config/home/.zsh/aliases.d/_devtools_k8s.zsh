@@ -13,7 +13,7 @@ alias k='kubectl'
 # Get resources
 alias kg='kubectl get'
 alias kga='kubectl get all'
-alias kgp='kubectl get pods'
+# kgp - defined as function in functions.d (has namespace arg support)
 alias kgs='kubectl get svc'
 alias kgn='kubectl get nodes'
 alias kgd='kubectl get deployments'
@@ -45,12 +45,11 @@ alias kdeld='kubectl delete deployment'
 alias kdels='kubectl delete svc'
 alias kdeli='kubectl delete ingress'
 
-# Logs
-alias kl='kubectl logs'
-alias klf='kubectl logs -f'
+# Logs - defined as functions in functions.d (with extra features)
+# kl, klf - see functions.d/_devtools_k8s.zsh
 
-# Exec
-alias kex='kubectl exec -it'
+# Exec - defined as function in functions.d (with command default)
+# kex - see functions.d/_devtools_k8s.zsh
 
 # Apply/Create/Edit
 alias ka='kubectl apply -f'
@@ -67,8 +66,8 @@ alias kro='kubectl rollout'
 alias kros='kubectl rollout status'
 alias krou='kubectl rollout undo'
 
-# Port forward
-alias kpf='kubectl port-forward'
+# Port forward - defined as function in functions.d
+# kpf - see functions.d/_devtools_k8s.zsh
 
 # Top (resource usage)
 alias ktp='kubectl top pod'

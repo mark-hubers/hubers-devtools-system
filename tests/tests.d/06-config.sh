@@ -6,22 +6,22 @@
 test_config() {
     step "Configuration & Preservation"
 
-    # ~/.zshrc_hubers should exist (personal customizations)
-    if [[ -f "$HOME/.zshrc_hubers" ]]; then
-        pass_test "~/.zshrc_hubers exists (personal customizations preserved)"
+    # ~/.zshrc_local should exist (personal customizations)
+    if [[ -f "$HOME/.zshrc_local" ]]; then
+        pass_test "~/.zshrc_local exists (personal customizations preserved)"
 
-        if [[ -s "$HOME/.zshrc_hubers" ]]; then
-            local line_count=$(wc -l < "$HOME/.zshrc_hubers" | tr -d ' ')
-            info "~/.zshrc_hubers has $line_count lines of customizations"
+        if [[ -s "$HOME/.zshrc_local" ]]; then
+            local line_count=$(wc -l < "$HOME/.zshrc_local" | tr -d ' ')
+            info "~/.zshrc_local has $line_count lines of customizations"
         else
-            info "~/.zshrc_hubers is empty (no customizations yet)"
+            info "~/.zshrc_local is empty (no customizations yet)"
         fi
     else
-        skip_test "~/.zshrc_hubers not created yet"
+        skip_test "~/.zshrc_local not created yet"
     fi
 
     # Main .zshrc should source personal file
-    assert_line_in_file "$HOME/.zshrc" "zshrc_hubers" ".zshrc sources personal customizations"
+    assert_line_in_file "$HOME/.zshrc" "zshrc_local" ".zshrc sources personal customizations"
 
     # Check .zshrc has devtools header
     assert_line_in_file "$HOME/.zshrc" "Ultimate Developer" ".zshrc has devtools header"

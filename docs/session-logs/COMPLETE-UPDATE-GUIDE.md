@@ -68,13 +68,13 @@ You wanted:
 - Either a marker system OR a separate file
 - Protection during reinstalls
 
-## The Solution: ~/.zshrc_hubers
+## The Solution: ~/.zshrc_local
 
 We implemented the **separate file approach** (way better than markers!):
 
 ### ✅ What We Built
 
-**New file:** `~/.zshrc_hubers`
+**New file:** `~/.zshrc_local`
 - Created automatically on first install
 - NEVER overwritten by installer
 - Automatically sourced at end of `.zshrc`
@@ -82,8 +82,8 @@ We implemented the **separate file approach** (way better than markers!):
 
 ### 📂 New Files Created
 
-**1. .zshrc_hubers.template**
-Location: `/terminal-config/home/.zshrc_hubers.template`
+**1. .zshrc_local.template**
+Location: `/terminal-config/home/.zshrc_local.template`
 
 Contains:
 - Clear explanation of the file's purpose
@@ -98,12 +98,12 @@ Added at the very end:
 # ============================================================================
 # USER CUSTOMIZATIONS - DO NOT EDIT ABOVE THIS LINE
 # ============================================================================
-# Add YOUR customizations to: ~/.zshrc_hubers
+# Add YOUR customizations to: ~/.zshrc_local
 # That file will NEVER be overwritten by the installer!
 # ============================================================================
 
-if [ -f ~/.zshrc_hubers ]; then
-  source ~/.zshrc_hubers
+if [ -f ~/.zshrc_local ]; then
+  source ~/.zshrc_local
 fi
 ```
 
@@ -111,9 +111,9 @@ fi
 New logic:
 ```bash
 # Create personal customizations file if it doesn't exist
-if [ ! -f ~/.zshrc_hubers ]; then
-  cp home/.zshrc_hubers.template ~/.zshrc_hubers
-  echo "✅ Created ~/.zshrc_hubers"
+if [ ! -f ~/.zshrc_local ]; then
+  cp home/.zshrc_local.template ~/.zshrc_local
+  echo "✅ Created ~/.zshrc_local"
 else
   echo "✅ Preserving your customizations"
   # DOES NOT TOUCH THE FILE!
@@ -122,7 +122,7 @@ fi
 
 **4. Updated CUSTOMIZATION.md**
 Complete rewrite featuring:
-- `~/.zshrc_hubers` as PRIMARY customization method
+- `~/.zshrc_local` as PRIMARY customization method
 - Clear table showing what's safe vs overwritten
 - Warning against editing main `.zshrc`
 - Examples for different user types
@@ -130,16 +130,16 @@ Complete rewrite featuring:
 ### 🔄 How It Works
 
 **First Install:**
-1. Installer creates `~/.zshrc_hubers` with template
+1. Installer creates `~/.zshrc_local` with template
 2. Template has helpful examples (commented out)
 3. `.zshrc` sources it at the end
-4. User adds their stuff to `~/.zshrc_hubers`
+4. User adds their stuff to `~/.zshrc_local`
 
 **On Reinstall:**
 1. Main `.zshrc` gets backed up & overwritten (expected)
-2. Installer sees `~/.zshrc_hubers` already exists
+2. Installer sees `~/.zshrc_local` already exists
 3. **Installer leaves it completely alone!** ✅
-4. New `.zshrc` still sources `~/.zshrc_hubers`
+4. New `.zshrc` still sources `~/.zshrc_local`
 5. **User's customizations survive!** ✅
 
 ### 📋 Safe Files vs Overwritten Files
@@ -147,13 +147,13 @@ Complete rewrite featuring:
 | File | Behavior on Reinstall |
 |------|----------------------|
 | `~/.zshrc` | ⚠️ **Overwritten** (backed up) |
-| `~/.zshrc_hubers` | ✅ **NEVER TOUCHED** |
+| `~/.zshrc_local` | ✅ **NEVER TOUCHED** |
 | `~/.zsh/my-favorites.txt` | ✅ **NEVER TOUCHED** |
 | `~/.zsh-bookmarks` | ✅ **NEVER TOUCHED** |
 | `~/.zsh/*.zsh` toolkits | ⚠️ Overwritten (framework) |
 
 **Your Three Safe Files:**
-1. `~/.zshrc_hubers` ← All your aliases/functions
+1. `~/.zshrc_local` ← All your aliases/functions
 2. `~/.zsh/my-favorites.txt` ← Startup display (edit with `favedit`)
 3. `~/.zsh-bookmarks` ← Directory bookmarks (managed by `bm`)
 
@@ -162,7 +162,7 @@ Complete rewrite featuring:
 **DO THIS:**
 ```bash
 # ✅ Add all your customizations here:
-vim ~/.zshrc_hubers
+vim ~/.zshrc_local
 
 # Add things like:
 alias myproject='cd ~/Projects/app && code .'
@@ -185,7 +185,7 @@ vim ~/.zshrc  # Your changes will be lost on reinstall!
 ## Files Created (NEW)
 1. `/terminal-config/docs/UTILITIES/FAVORITES-SYSTEM.md` (300+ lines)
 2. `/terminal-config/docs/TROUBLESHOOTING.md` (200+ lines)
-3. `/terminal-config/home/.zshrc_hubers.template` (47 lines)
+3. `/terminal-config/home/.zshrc_local.template` (47 lines)
 4. `/FAVORITES-FIX-SUMMARY.md` (documentation)
 5. `/SAFE-CUSTOMIZATION-SUMMARY.md` (documentation)
 
@@ -193,15 +193,15 @@ vim ~/.zshrc  # Your changes will be lost on reinstall!
 1. `/terminal-config/home/.zshrc`
    - Added "favorites" to `th` menu
    - Added `dev-tools` aliases
-   - Added sourcing of `~/.zshrc_hubers` at end
+   - Added sourcing of `~/.zshrc_local` at end
 
 2. `/terminal-config/INSTALL.sh`
-   - Added logic to create `~/.zshrc_hubers` once
+   - Added logic to create `~/.zshrc_local` once
    - Updated "Next steps" messaging
 
 3. `/terminal-config/docs/SETUP/CUSTOMIZATION.md`
    - Complete rewrite (400+ lines)
-   - Features `~/.zshrc_hubers` as primary method
+   - Features `~/.zshrc_local` as primary method
 
 4. `/terminal-config/docs/REFERENCE/CHEAT-SHEET.md`
    - Added favorites section
@@ -226,7 +226,7 @@ cd mac-dev-setup
 
 # Or if updating existing installation:
 # Backup your safe files first!
-cp ~/.zshrc_hubers ~/backup-zshrc_hubers.txt
+cp ~/.zshrc_local ~/backup-zshrc_hubers.txt
 cp ~/.zsh/my-favorites.txt ~/backup-favorites.txt
 
 # Then extract and overwrite
@@ -241,8 +241,8 @@ cd terminal-config
 
 The installer will:
 - ✅ Install updated `.zshrc` with all fixes
-- ✅ Create `~/.zshrc_hubers` (if it doesn't exist)
-- ✅ Preserve existing `~/.zshrc_hubers` (if it exists)
+- ✅ Create `~/.zshrc_local` (if it doesn't exist)
+- ✅ Preserve existing `~/.zshrc_local` (if it exists)
 - ✅ Install all updated documentation
 - ✅ Show you next steps
 
@@ -259,7 +259,7 @@ th favorites         # Should show docs
 th <TAB>             # "favorites" should be in menu
 
 # Test customization file:
-vim ~/.zshrc_hubers  # Should open (maybe with template)
+vim ~/.zshrc_local  # Should open (maybe with template)
 # Add: alias test='echo "It works!"'
 # Save and exit
 
@@ -274,7 +274,7 @@ test                 # Should output "It works!"
 favedit
 
 # Add your personal aliases/functions:
-vim ~/.zshrc_hubers
+vim ~/.zshrc_local
 
 # Add your bookmarks:
 cd ~/Projects/myapp
@@ -294,7 +294,7 @@ bm myapp
 - Better onboarding
 
 ### 2. Safe Customizations
-- Add aliases to `~/.zshrc_hubers` safely
+- Add aliases to `~/.zshrc_local` safely
 - Survive all reinstalls
 - Clear documentation
 - Helpful template
@@ -328,7 +328,7 @@ bm myapp
 **Never get overwritten:**
 
 ```bash
-~/.zshrc_hubers              # Your aliases/functions
+~/.zshrc_local              # Your aliases/functions
 ~/.zsh/my-favorites.txt      # Startup display (favedit)
 ~/.zsh-bookmarks             # Directory bookmarks (bm)
 ```
@@ -344,7 +344,7 @@ dev-tools-edit       # Same as 'favedit'
 th favorites         # Full documentation
 
 # Customizations:
-vim ~/.zshrc_hubers  # Edit your safe file
+vim ~/.zshrc_local  # Edit your safe file
 source ~/.zshrc      # Reload after changes
 
 # Help:
@@ -356,14 +356,14 @@ th                   # Interactive menu
 
 ```bash
 # Backup to Dropbox/cloud:
-cp ~/.zshrc_hubers ~/Dropbox/terminal-backup/
+cp ~/.zshrc_local ~/Dropbox/terminal-backup/
 cp ~/.zsh/my-favorites.txt ~/Dropbox/terminal-backup/
 cp ~/.zsh-bookmarks ~/Dropbox/terminal-backup/
 
 # Or use git:
 cd ~
 git init
-git add .zshrc_hubers .zsh/my-favorites.txt .zsh-bookmarks
+git add .zshrc_local .zsh/my-favorites.txt .zsh-bookmarks
 git commit -m "My terminal customizations"
 git remote add origin <your-repo>
 git push
@@ -380,8 +380,8 @@ After installation, verify:
 - [ ] `favedit` opens editor
 - [ ] `th favorites` shows documentation
 - [ ] `th <TAB>` shows "favorites" in menu
-- [ ] `~/.zshrc_hubers` exists
-- [ ] Can add alias to `~/.zshrc_hubers` and it loads
+- [ ] `~/.zshrc_local` exists
+- [ ] Can add alias to `~/.zshrc_local` and it loads
 - [ ] Reinstalling doesn't break your customizations
 
 ---
@@ -389,17 +389,17 @@ After installation, verify:
 # Questions?
 
 ## Where do I add custom aliases?
-→ `~/.zshrc_hubers` (never gets overwritten)
+→ `~/.zshrc_local` (never gets overwritten)
 
 ## Where do I customize startup display?
 → Run `favedit` (edits `~/.zsh/my-favorites.txt`)
 
 ## What if I already have aliases in .zshrc?
-→ Move them to `~/.zshrc_hubers` before reinstalling
+→ Move them to `~/.zshrc_local` before reinstalling
 
 ## Can I backup my customizations?
 → Yes! Just backup these 3 files:
-- `~/.zshrc_hubers`
+- `~/.zshrc_local`
 - `~/.zsh/my-favorites.txt`
 - `~/.zsh-bookmarks`
 
@@ -412,7 +412,7 @@ After installation, verify:
 
 **Inside the package:**
 - `FAVORITES-FIX-SUMMARY.md` - Details on favorites system
-- `SAFE-CUSTOMIZATION-SUMMARY.md` - Details on .zshrc_hubers system
+- `SAFE-CUSTOMIZATION-SUMMARY.md` - Details on .zshrc_local system
 - `terminal-config/docs/` - All user documentation
 
 **After installation:**

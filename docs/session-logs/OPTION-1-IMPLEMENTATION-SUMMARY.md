@@ -236,7 +236,7 @@ fi
 
 ---
 
-## 📝 Part 7: Updated .zshrc_hubers.template
+## 📝 Part 7: Updated .zshrc_local.template
 
 ### ✅ Added PATH Examples
 
@@ -280,7 +280,7 @@ fi
    - Added VIM COMMANDS section to template
    - Added SHELL VI MODE section to template
    
-3. **`/terminal-config/home/.zshrc_hubers.template`** (updated)
+3. **`/terminal-config/home/.zshrc_local.template`** (updated)
    - Added PATH examples section
    - Includes $HOME/.local/bin example
 
@@ -338,7 +338,7 @@ After installation, verify:
 **Lines 144-163:** Smart EDITOR detection in favedit()  
 **Lines 82-107:** Added VIM COMMANDS and SHELL VI MODE to template
 
-### .zshrc_hubers.template (User Customizations)
+### .zshrc_local.template (User Customizations)
 **Lines 27-36:** Added PATH examples including $HOME/.local/bin
 
 ---
@@ -430,9 +430,9 @@ favedit
 ```
 
 ### Tip 4: PATH Additions
-Add personal PATHs to `~/.zshrc_hubers`:
+Add personal PATHs to `~/.zshrc_local`:
 ```bash
-vim ~/.zshrc_hubers
+vim ~/.zshrc_local
 # Add: export PATH="$HOME/.local/bin:$PATH"
 ```
 
@@ -474,7 +474,7 @@ th <TAB>           # Browse all topics
 - Vim reference: `~/.zsh/docs/REFERENCE/VIM-REFERENCE.md`
 - Vi mode guide: `~/.zsh/docs/DAILY-USE/ZSH-VI-MODE.md`
 - Favorites: `~/.zsh/my-favorites.txt` (edit with `favedit`)
-- Your customizations: `~/.zshrc_hubers`
+- Your customizations: `~/.zshrc_local`
 
 ---
 

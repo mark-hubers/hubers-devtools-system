@@ -3,6 +3,9 @@
 # Easy commands for ports, DNS, TCP, tunneling, and more
 # ============================================================================
 
+# Clear conflicting aliases (may be defined elsewhere)
+unalias ports port 2>/dev/null
+
 # ====================================
 # PORT MANAGEMENT
 # ====================================

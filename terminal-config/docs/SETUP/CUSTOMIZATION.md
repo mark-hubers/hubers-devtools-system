@@ -4,21 +4,21 @@ Quick guide to making this terminal setup YOURS.
 
 ---
 
-## 🔒 Safe Customization File: ~/.zshrc_hubers
+## 🔒 Safe Customization File: ~/.zshrc_local
 
-**IMPORTANT:** Add all your personal customizations to `~/.zshrc_hubers` - this file is **NEVER overwritten** by the installer!
+**IMPORTANT:** Add all your personal customizations to `~/.zshrc_local` - this file is **NEVER overwritten** by the installer!
 
 ```bash
 # Edit your personal customizations:
-vim ~/.zshrc_hubers
-code ~/.zshrc_hubers
-nano ~/.zshrc_hubers
+vim ~/.zshrc_local
+code ~/.zshrc_local
+nano ~/.zshrc_local
 
 # Your changes are automatically loaded at shell startup
 # No need to edit the main .zshrc file!
 ```
 
-### Why Use .zshrc_hubers?
+### Why Use .zshrc_local?
 
 ✅ **Safe from reinstalls** - Never gets overwritten  
 ✅ **Clean separation** - Your stuff separate from framework  
@@ -43,7 +43,7 @@ cd ~/Documents/work
 bm work
 
 # 3. Add your personal aliases/functions
-vim ~/.zshrc_hubers
+vim ~/.zshrc_local
 # Add things like:
 # alias deploy='./scripts/deploy.sh'
 # alias myproject='cd ~/Projects/app && code .'
@@ -55,13 +55,13 @@ That's it! You're 80% customized.
 
 ## 🎯 Key Customization Areas
 
-### 1. Personal Aliases & Functions (~/.zshrc_hubers)
+### 1. Personal Aliases & Functions (~/.zshrc_local)
 
 **This is where ALL your personal customizations go!**
 
 ```bash
 # Edit the file:
-vim ~/.zshrc_hubers
+vim ~/.zshrc_local
 
 # Example additions:
 # === MY CUSTOM ALIASES ===
@@ -144,10 +144,10 @@ p10k configure   # Run the configuration wizard again
 
 **Customize fuzzy finder colors and behavior:**
 
-**⚠️ NOTE:** Don't edit the main `.zshrc` - add overrides to `~/.zshrc_hubers` instead!
+**⚠️ NOTE:** Don't edit the main `.zshrc` - add overrides to `~/.zshrc_local` instead!
 
 ```bash
-# In ~/.zshrc_hubers, you can override FZF settings:
+# In ~/.zshrc_local, you can override FZF settings:
 export FZF_DEFAULT_OPTS="
   --height 60%
   --layout=reverse
@@ -175,8 +175,8 @@ my-function() {
   echo "My custom function"
 }
 
-# Source it in ~/.zshrc_hubers (NOT in main .zshrc!)
-echo 'source ~/.zsh/my-toolkit.zsh' >> ~/.zshrc_hubers
+# Source it in ~/.zshrc_local (NOT in main .zshrc!)
+echo 'source ~/.zsh/my-toolkit.zsh' >> ~/.zshrc_local
 ```
 
 ### Custom Completion Scripts
@@ -193,7 +193,7 @@ ls ~/.zsh/_*
 
 ### Environment Variables
 
-Add to `~/.zshrc_hubers`:
+Add to `~/.zshrc_local`:
 
 ```bash
 # === MY ENVIRONMENT ===
@@ -208,12 +208,12 @@ export API_KEY=secret123
 
 After installation, customize these (in order):
 
-- [ ] Edit `~/.zshrc_hubers` - add your custom aliases/functions
+- [ ] Edit `~/.zshrc_local` - add your custom aliases/functions
 - [ ] Run `favedit` - add your most-used commands
 - [ ] Add directory bookmarks with `bm`
 - [ ] Run `p10k configure` if you want a different prompt style
 - [ ] Explore `th <TAB>` to discover all features
-- [ ] Customize FZF colors/behavior (in ~/.zshrc_hubers, optional)
+- [ ] Customize FZF colors/behavior (in ~/.zshrc_local, optional)
 
 ---
 
@@ -222,7 +222,7 @@ After installation, customize these (in order):
 ### Web Developer
 
 ```bash
-# In ~/.zshrc_hubers
+# In ~/.zshrc_local
 alias dev='npm run dev'
 alias test='npm test'
 alias build='npm run build'
@@ -236,7 +236,7 @@ deploy() {
 ### DevOps Engineer
 
 ```bash
-# In ~/.zshrc_hubers
+# In ~/.zshrc_local
 alias k='kubectl'
 alias tf='terraform'
 
@@ -256,7 +256,7 @@ staging() {
 ### Data Scientist
 
 ```bash
-# In ~/.zshrc_hubers
+# In ~/.zshrc_local
 alias jlab='jupyter lab'
 alias jnb='jupyter notebook'
 
@@ -280,7 +280,7 @@ activate() {
 
 ## 💡 Pro Tips
 
-### Tip 1: Always Use ~/.zshrc_hubers
+### Tip 1: Always Use ~/.zshrc_local
 
 **❌ DON'T:**
 ```bash
@@ -291,12 +291,12 @@ vim ~/.zshrc  # This gets overwritten on reinstall!
 **✅ DO:**
 ```bash
 # Always edit your personal file
-vim ~/.zshrc_hubers  # Safe from reinstalls!
+vim ~/.zshrc_local  # Safe from reinstalls!
 ```
 
 ### Tip 2: Start Small
 Don't try to customize everything at once. Start with:
-1. Add 3-5 aliases to ~/.zshrc_hubers
+1. Add 3-5 aliases to ~/.zshrc_local
 2. Add 5 commands to favorites
 3. Bookmark 3 directories
 
@@ -304,19 +304,19 @@ Don't try to customize everything at once. Start with:
 Add to your customizations as you discover needs:
 - Forgot a command? → Add to favorites
 - Visit a directory often? → Bookmark it
-- Run a complex command repeatedly? → Add alias to ~/.zshrc_hubers
+- Run a complex command repeatedly? → Add alias to ~/.zshrc_local
 
 ### Tip 4: Backup Your Customizations
 ```bash
 # Backup your custom files (version control these!)
-cp ~/.zshrc_hubers ~/.dotfiles/
+cp ~/.zshrc_local ~/.dotfiles/
 cp ~/.zsh/my-favorites.txt ~/.dotfiles/
 cp ~/.zsh-bookmarks ~/.dotfiles/
 
 # Or use git:
 cd ~
 git init
-git add .zshrc_hubers .zsh/my-favorites.txt .zsh-bookmarks
+git add .zshrc_local .zsh/my-favorites.txt .zsh-bookmarks
 git commit -m "My terminal customizations"
 ```
 
@@ -325,7 +325,7 @@ If you forget what you can add, check the template:
 
 ```bash
 # The template has helpful examples:
-cat ~/.zshrc_hubers
+cat ~/.zshrc_local
 ```
 
 ---
@@ -337,7 +337,7 @@ When you run `./INSTALL.sh` again:
 | File | What Happens |
 |------|--------------|
 | `~/.zshrc` | ⚠️ **Overwritten** (backed up first) |
-| `~/.zshrc_hubers` | ✅ **SAFE** - Never touched! |
+| `~/.zshrc_local` | ✅ **SAFE** - Never touched! |
 | `~/.zsh/my-favorites.txt` | ✅ **SAFE** - Never touched! |
 | `~/.zsh-bookmarks` | ✅ **SAFE** - Never touched! |
 | `~/.zsh/*.zsh` toolkits | ⚠️ **Overwritten** (but you shouldn't edit these) |
@@ -345,10 +345,10 @@ When you run `./INSTALL.sh` again:
 **The rule:** Only edit files in your "safe zone" and they'll survive any reinstall!
 
 **Your Safe Zone:**
-- `~/.zshrc_hubers` ← All your aliases/functions go here
+- `~/.zshrc_local` ← All your aliases/functions go here
 - `~/.zsh/my-favorites.txt` ← Edit with `favedit`
 - `~/.zsh-bookmarks` ← Managed by `bm` command
 
 ---
 
-**Next Step:** Run `vim ~/.zshrc_hubers` and add your first alias! 🚀
+**Next Step:** Run `vim ~/.zshrc_local` and add your first alias! 🚀

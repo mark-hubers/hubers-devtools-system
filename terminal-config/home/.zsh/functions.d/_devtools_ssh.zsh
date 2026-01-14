@@ -127,3 +127,55 @@ Host internal-*
 mkdir -p ~/.ssh/sockets && chmod 700 ~/.ssh/sockets
 EOF
 }
+
+# ============================================================================
+# iTerm2 File Transfer (easy-to-remember aliases)
+# ============================================================================
+# it2dl = download file FROM remote TO your Mac
+# it2ul = upload file FROM your Mac TO remote
+
+# Memorable aliases for iTerm2 transfers
+alias download='it2dl'      # Download from remote: download <file>
+alias dl='it2dl'            # Short version
+alias upload='it2ul'        # Upload to remote: upload
+alias ul='it2ul'            # Short version
+
+# Install iTerm2 utils on a remote server (run this ON the remote)
+# Usage: SSH to server, then run: iterm-install-remote
+alias iterm-install-remote='curl -L https://iterm2.com/shell_integration/install_shell_integration_and_utilities.sh | bash'
+
+# Quick command to install on remote via SSH (run from local)
+# Usage: iterm-setup-remote myserver
+iterm-setup-remote() {
+    local host="${1:?Usage: iterm-setup-remote <host>}"
+    echo "Installing iTerm2 utilities on $host..."
+    ssh "$host" 'curl -L https://iterm2.com/shell_integration/install_shell_integration_and_utilities.sh | bash'
+    echo ""
+    echo "Done! Now on $host you can use:"
+    echo "  download <file>  - download file to your Mac"
+    echo "  upload           - upload file from your Mac"
+}
+
+# Show iTerm2 transfer help
+iterm-help() {
+    cat << 'EOF'
+iTerm2 File Transfer Commands
+=============================
+
+FROM YOUR MAC (local):
+  upload              Interactive upload to current SSH session
+  ul                  Same as upload
+
+ON REMOTE SERVER:
+  download <file>     Download file to your Mac's Downloads folder
+  dl <file>           Same as download
+
+SETUP ON NEW SERVER:
+  iterm-setup-remote <host>    Install utils via SSH
+
+  Or SSH in and run:
+  curl -L https://iterm2.com/shell_integration/install_shell_integration_and_utilities.sh | bash
+
+NOTE: These only work in iTerm2, not other terminals!
+EOF
+}

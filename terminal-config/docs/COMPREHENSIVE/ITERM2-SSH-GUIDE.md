@@ -8,15 +8,18 @@ Your personal Mac ↔ work laptop setup guide. Includes SSH tunneling, SOCKS pro
 
 | Command | What It Does |
 |---------|--------------|
+| `download <file>` / `dl` | Download file FROM remote to your Mac (iTerm2) |
+| `upload` / `ul` | Upload file TO remote from your Mac (iTerm2) |
+| `push file.txt work:~/` | Copy file to remote with progress (rsync) |
+| `pull work:~/file.txt .` | Download file from remote (rsync) |
 | `socks work-laptop` | Browse web as if on work laptop |
 | `forward 8080 internal:443 work` | Access internal site on localhost:8080 |
-| `push file.txt work:~/` | Copy file to remote with progress |
-| `pull work:~/file.txt .` | Download file from remote |
 | `tunnels` | List active SSH tunnels |
 | `tunnel-kill` | Kill all tunnels |
+| `iterm-setup-remote host` | Install iTerm2 utils on remote server |
+| `iterm-help` | Show all iTerm2 transfer commands |
 | `ssh-setup` | Generate SSH key if needed |
 | `ssh-copy-key host` | Copy your key to remote |
-| `ssh-tips` | Show SSH config examples |
 
 ---
 
@@ -203,7 +206,33 @@ forward-rdp windows-pc work             # → localhost:3389
 
 ## 📁 File Transfer
 
-### Push/Pull Commands (Recommended)
+### iTerm2 Easy Commands (Best!)
+
+These work in any SSH session when iTerm2 utils are installed:
+
+```bash
+# ON REMOTE SERVER - download file to your Mac's Downloads folder
+download /var/log/app.log      # Full command
+dl /var/log/app.log            # Short version
+
+# FROM YOUR MAC - upload file to current SSH session
+upload                         # Interactive - select file
+ul                             # Short version
+```
+
+**Setup on new servers:**
+```bash
+# From your Mac (installs utils on remote):
+iterm-setup-remote myserver
+
+# Or SSH in and run:
+iterm-install-remote
+
+# Show all commands:
+iterm-help
+```
+
+### Push/Pull Commands (rsync with progress)
 
 ```bash
 # Copy file TO work laptop (with progress bar)
@@ -219,7 +248,7 @@ sync-to ./project work:~/projects/project
 sync-from work:~/projects/project ./project
 ```
 
-### iTerm2 Drag & Drop (Requires Shell Integration)
+### iTerm2 Drag & Drop
 
 1. Start SSH session: `ssh work`
 2. Drag file from Finder into terminal → uploads to current remote directory
@@ -497,6 +526,17 @@ tunnel-kill
 ## 📚 Related Commands
 
 ```bash
+# iTerm2 File Transfer
+download/dl     # Download file from remote to your Mac
+upload/ul       # Upload file to remote from your Mac
+iterm-setup-remote  # Install iTerm2 utils on remote server
+iterm-help      # Show all transfer commands
+
+# Rsync Transfer
+push/pull       # File transfer with progress
+sync-to/sync-from   # Directory sync
+
+# SSH
 ssh-tips        # Show SSH config examples
 ssh-setup       # Generate SSH key
 ssh-copy-key    # Copy key to remote host
@@ -504,7 +544,6 @@ tunnels         # List active tunnels
 tunnel-kill     # Kill all tunnels
 socks           # Start SOCKS proxy
 forward         # Port forward
-push/pull       # File transfer
 ```
 
 Run `th ssh` or `th iterm2` to see this guide anytime!
