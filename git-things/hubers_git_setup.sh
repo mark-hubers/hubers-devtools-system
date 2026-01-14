@@ -13,7 +13,7 @@
 # Folder structure:
 #   ~/hubers-devtools/           → Personal (default)
 #   ~/any-other-folder/          → Personal (default)
-#   ~/git/mhubers/               → Personal (explicit, for reference)
+#   ~/git/personal/               → Personal (explicit, for reference)
 #   ~/git/your-work-org/            → Work (override)
 #   ~/git/bitbucket/             → Bitbucket (override)
 #
@@ -35,20 +35,20 @@ echo ""
 # ============================================================================
 
 # Personal (DEFAULT - used everywhere unless overridden)
-PERSONAL_NAME="mark-hubers"
-PERSONAL_EMAIL="mhubers@gmail.com"
+PERSONAL_NAME="your-username"
+PERSONAL_EMAIL="you@example.com"
 PERSONAL_KEY="$HOME/.ssh/git_personal.pem"
-PERSONAL_FOLDER="$HOME/git/mhubers"
+PERSONAL_FOLDER="$HOME/git/personal"
 
 # Work account
-WORK_NAME="Mark Hubers"
+WORK_NAME="Your Name"
 WORK_EMAIL="your-name@your-company.com"
 WORK_KEY="$HOME/.ssh/git_your-company_bu.pem"
 WORK_FOLDER="$HOME/git/your-work-org"
 
 # Bitbucket account (update these with real values)
-BITBUCKET_NAME="mark-hubers"
-BITBUCKET_EMAIL="mhubers@gmail.com"
+BITBUCKET_NAME="your-username"
+BITBUCKET_EMAIL="you@example.com"
 BITBUCKET_KEY="$HOME/.ssh/git_bitbucket.pem"
 BITBUCKET_FOLDER="$HOME/git/bitbucket"
 
@@ -172,7 +172,7 @@ cat > "$HOME/.gitconfig" <<EOF
 # These override the default identity for specific folders
 # Personal folder (same as default, but explicit - good for reference)
 [includeIf "gitdir:$PERSONAL_FOLDER/"]
-    path = ~/.gitconfig_mhubers
+    path = ~/.gitconfig_personal
 
 # Work folder - overrides to work identity
 [includeIf "gitdir:$WORK_FOLDER/"]
@@ -191,15 +191,15 @@ echo "   ✓ Created ~/.gitconfig"
 echo "📝 Creating account configs..."
 
 # Personal account config
-cat > "$HOME/.gitconfig_mhubers" <<EOF
-# Personal GitHub account (mhubers@gmail.com)
+cat > "$HOME/.gitconfig_personal" <<EOF
+# Personal GitHub account
 [user]
     name = $PERSONAL_NAME
     email = $PERSONAL_EMAIL
 [core]
     sshCommand = "ssh -i $PERSONAL_KEY"
 EOF
-echo "   ✓ Created ~/.gitconfig_mhubers"
+echo "   ✓ Created ~/.gitconfig_personal"
 
 # Work account config
 cat > "$HOME/.gitconfig_your-work-org" <<EOF
@@ -274,7 +274,7 @@ echo ""
 echo "📁 Folder → Identity mapping:"
 echo "   ~/hubers-devtools/        → Personal (default)"
 echo "   ~/anything-else/          → Personal (default)"
-echo "   ~/git/mhubers/            → Personal (explicit)"
+echo "   ~/git/personal/            → Personal (explicit)"
 echo "   ~/git/your-work-org/         → Work"
 echo "   ~/git/bitbucket/          → Bitbucket"
 echo ""
@@ -293,7 +293,7 @@ echo "      ssh -T git@github.com"
 echo ""
 echo "   3. Clone repos to the right folders:"
 echo "      cd ~/git/your-work-org && git clone git@github.com:your-company/repo.git"
-echo "      cd ~/git/mhubers && git clone git@github.com:mhubers/repo.git"
+echo "      cd ~/git/personal && git clone git@github.com:your-username/repo.git"
 echo ""
 echo "💡 To add another account:"
 echo "   1. Edit this script (add variables at top)"
