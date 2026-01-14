@@ -43,12 +43,6 @@ ssh-tips           | SSH config examples           || ssh-setup       | Generate
 devsetup check     | Show installed/missing        || devsetup add <x>| Install tool
 devsetup search    | Find tools by name            || devsetup list   | List all tools
 #
-#= TUI APPS
-lazygit            | Git terminal UI               || k9s             | Kubernetes TUI
-lazydocker         | Docker terminal UI            || btop            | System monitor TUI
-glow file.md       | Markdown viewer               || gum choose      | Interactive prompts
-superfile          | File manager TUI              || posting         | API testing TUI
-#
 #= SEARCH (rg & fd)
 rg <pat>           | Grep (ripgrep)                || rg -i <pat>     | Case insensitive
 rg <pat> -t py     | Search Python files           || rg -l <pat>     | List files only
@@ -82,15 +76,10 @@ bat <file>         | Cat + syntax highlight        || ll              | Better l
 tree -L 2          | Tree depth 2                  || cat f | jq .    | Pretty JSON
 #
 #= SSH FILE TRANSFER (iTerm2)
-it2dl <file>       | Download to Mac (run on remote)|| it2ul          | Upload from Mac (on remote)
+Cmd+Click file     | Download from SSH session     || Drag file in    | Upload to SSH dir
 iterm-setup-remote | Install utils on SSH server   || iterm-help      | Show transfer commands
 push file host:~   | Upload + progress (rsync)     || pull host:f .   | Download + progress
 sync-to dir h:dir  | Sync folder TO remote         || sync-from h:d d | Sync folder FROM
-#
-#= SSH TUNNELS & PROXY
-socks work         | Browse web via work laptop    || tunnels         | List active tunnels
-forward 8080 h:p j | Port forward via jump         || tunnel-kill     | Kill all tunnels
-ssh-tips           | SSH config examples           || ssh-setup       | Generate SSH key
 #
 #= MARKDOWN
 mdpdf file.md      | Convert to PDF                || mdview file.md  | View in terminal
@@ -112,9 +101,9 @@ ESC then /text     | Search history backward       || ESC then n/N    | Next/pre
 vimode / emacsmode | Toggle vi mode on/off         || Ctrl+R          | History search (always)
 th vim             | Full Vim reference guide      || th vimode       | Shell vi mode guide
 #
-#= NETWORK
+#= NETWORK & AWS
 myip               | Show local + public IPv4      || ports           | Listening ports
-awslogin           | AWS SSO login                 || awswho          | AWS identity
+awslogin           | AWS SSO login                 || awswhoami       | AWS identity
 #
 FAVEOF
         echo "✅ Created favorites file: $FAVORITES_FILE"

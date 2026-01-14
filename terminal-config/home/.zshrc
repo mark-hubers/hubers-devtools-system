@@ -236,6 +236,7 @@ if [[ "$TERM_PROGRAM" == "iTerm.app" ]] || [[ -n "$ITERM_SESSION_ID" ]]; then
     export ITERM2_DETECTED=1
     [[ -f ~/.iterm2_shell_integration.zsh ]] && source ~/.iterm2_shell_integration.zsh
 
+    unalias imgcat 2>/dev/null
     imgcat() {
         [[ -x ~/.iterm2/imgcat ]] && ~/.iterm2/imgcat "$@" || echo "Run: brew install imgcat"
     }
