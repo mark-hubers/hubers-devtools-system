@@ -42,23 +42,77 @@ _gh_check() {
 # List all GitHub accounts in gh CLI
 ghlist() {
   echo "📋 GitHub Accounts in gh CLI"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo ""
 
-  local accounts=$(gh auth status 2>&1)
+  local status_output=$(gh auth status 2>&1)
 
-  if echo "$accounts" | grep -q "Logged in"; then
-    echo "$accounts" | grep -E "(Logged in|Active account|Token scopes|Git operations)" | while read line; do
-      echo "  $line"
-    done
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "Commands: ghadd (add new) | ghswitch (change) | ghremove (delete)"
-  else
+  if ! echo "$status_output" | grep -q "Logged in"; then
     echo "  No accounts configured yet."
     echo ""
     echo "  Run 'ghadd' to add your first account."
+    return
   fi
+
+  # Extract account info using awk for reliable parsing
+  echo "$status_output" | awk '
+    /Logged in to github.com account/ {
+      if (account != "") {
+        print account "|" active "|" scopes
+      }
+      account = $7
+      gsub(/\(.*/, "", account)
+      active = "false"
+      scopes = ""
+    }
+    /Active account: true/ { active = "true" }
+    /Token scopes:/ {
+      scopes = $0
+      gsub(/.*Token scopes: /, "", scopes)
+      gsub(/'\''/, "", scopes)
+    }
+    END {
+      if (account != "") {
+        print account "|" active "|" scopes
+      }
+    }
+  ' | while IFS='|' read -r account active scopes; do
+    _ghlist_print_account "$account" "$active" "$scopes"
+  done
+
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "Commands: ghadd (add new) | ghswitch (change) | ghremove (delete)"
+}
+
+# Helper to print a single account with labels
+_ghlist_print_account() {
+  local account="$1" is_active="$2" scopes="$3"
+  local label="" active_marker="" default_org=""
+
+  # Determine label based on scopes
+  if [[ "$scopes" == *"admin:org"* ]] || [[ "$scopes" == *"admin:enterprise"* ]]; then
+    label="🔑 ADMIN"
+  elif [[ "$scopes" == *"repo"* ]]; then
+    label="👤 standard"
+  else
+    label="📖 read-only"
+  fi
+
+  # Active marker
+  if [[ "$is_active" == "true" ]]; then
+    active_marker="  ✅ ACTIVE"
+  fi
+
+  # Check for default org
+  default_org="${GH_ACCOUNT_DEFAULT_ORG[$account]}"
+
+  echo "┌─────────────────────────────────────────────────────"
+  echo "│ $account$active_marker"
+  echo "│ Type: $label"
+  [[ -n "$default_org" ]] && echo "│ Default org: $default_org"
+  echo "│ Scopes: ${scopes:0:60}$([ ${#scopes} -gt 60 ] && echo '...')"
+  echo "└─────────────────────────────────────────────────────"
 }
 
 # Add a new GitHub account (guided)
