@@ -88,15 +88,15 @@ ghlist() {
 # Helper to print a single account with labels
 _ghlist_print_account() {
   local account="$1" is_active="$2" scopes="$3"
-  local label="" active_marker="" default_org=""
+  local type_label="" active_marker="" default_org="" account_label=""
 
-  # Determine label based on scopes
+  # Determine type label based on scopes
   if [[ "$scopes" == *"admin:org"* ]] || [[ "$scopes" == *"admin:enterprise"* ]]; then
-    label="🔑 ADMIN"
+    type_label="🔑 ADMIN"
   elif [[ "$scopes" == *"repo"* ]]; then
-    label="👤 standard"
+    type_label="👤 standard"
   else
-    label="📖 read-only"
+    type_label="📖 read-only"
   fi
 
   # Active marker
@@ -104,12 +104,14 @@ _ghlist_print_account() {
     active_marker="  ✅ ACTIVE"
   fi
 
-  # Check for default org
+  # Check for default org and account label
   default_org="${GH_ACCOUNT_DEFAULT_ORG[$account]}"
+  account_label="${GH_ACCOUNT_LABEL[$account]}"
 
   echo "┌─────────────────────────────────────────────────────"
   echo "│ $account$active_marker"
-  echo "│ Type: $label"
+  [[ -n "$account_label" ]] && echo "│ 📧 $account_label"
+  echo "│ Type: $type_label"
   [[ -n "$default_org" ]] && echo "│ Default org: $default_org"
   echo "│ Scopes: ${scopes:0:60}$([ ${#scopes} -gt 60 ] && echo '...')"
   echo "└─────────────────────────────────────────────────────"
@@ -438,6 +440,14 @@ GH_DIR_ACCOUNT_MAP=(
 typeset -gA GH_ACCOUNT_DEFAULT_ORG
 GH_ACCOUNT_DEFAULT_ORG=(
   # "work-account"  "default-org"   # Example: work account defaults to this org
+)
+
+# Account descriptions (email, label, etc. for display)
+# Makes ghlist output clearer - add in ~/.zshrc_hubers (private)
+typeset -gA GH_ACCOUNT_LABEL
+GH_ACCOUNT_LABEL=(
+  # "account-name"  "email@example.com (personal)"
+  # "work-account"  "work@company.com (work admin)"
 )
 
 # Get the default org for an account
