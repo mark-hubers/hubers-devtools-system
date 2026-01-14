@@ -194,17 +194,21 @@ ghtest() {
 
   # Test 3: List repos (just count)
   echo -n "  Repo access:       "
-  local repo_count=$(gh repo list --limit 5 --json name 2>/dev/null | grep -c '"name"' || echo "0")
-  if [[ $repo_count -gt 0 ]]; then
+  local repo_output=$(gh repo list --limit 5 --json name 2>&1)
+  if echo "$repo_output" | grep -q '"name"'; then
     echo "✅ Can list repos"
   else
     echo "⚠️  No repos or no access"
   fi
 
-  # Test 4: Check token scopes
+  # Test 4: Check token scopes (only for active account)
   echo -n "  Token scopes:      "
-  local scopes=$(gh auth status 2>&1 | grep "Token scopes" | sed "s/.*Token scopes: '//" | sed "s/'//")
-  echo "✅ $scopes"
+  local scopes=$(gh auth status 2>&1 | awk '/Active account: true/{found=1} found && /Token scopes/{print; exit}' | sed "s/.*Token scopes: //" | tr -d "'")
+  if [[ -n "$scopes" ]]; then
+    echo "✅ $scopes"
+  else
+    echo "⚠️  Could not determine scopes"
+  fi
 
   # Test 5: Check for SSO (org access)
   echo -n "  SSO/Org access:    "
