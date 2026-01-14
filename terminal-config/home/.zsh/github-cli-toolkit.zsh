@@ -312,6 +312,20 @@ GH_DIR_ACCOUNT_MAP=(
   # "$HOME/personal/*" "mark-hubers"  # All repos in ~/personal/ use personal
 )
 
+# Default org per account (for work/enterprise accounts)
+# When using ghrepos, ghclone, etc., use this org by default
+# Add your mappings in ~/.zshrc_hubers (private)
+typeset -gA GH_ACCOUNT_DEFAULT_ORG
+GH_ACCOUNT_DEFAULT_ORG=(
+  # "work-account"  "default-org"   # Example: work account defaults to this org
+)
+
+# Get the default org for an account
+_gh_default_org() {
+  local account="${1:-$(_gh_current_account)}"
+  echo "${GH_ACCOUNT_DEFAULT_ORG[$account]}"
+}
+
 # Get current gh account (the active one)
 _gh_current_account() {
   # Find the account where "Active account: true" appears after "Logged in"
@@ -393,15 +407,17 @@ ghauto() {
 
 # Show which account should be used here
 ghwho() {
-  local current_account required_account owner
+  local current_account required_account owner default_org
 
   current_account=$(_gh_current_account)
   required_account=$(_gh_required_account)
   owner=$(_gh_repo_owner)
+  default_org=$(_gh_default_org "$current_account")
 
   echo "📍 GitHub Account Status"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "Current account:  $current_account"
+  [[ -n "$default_org" ]] && echo "Default org:      $default_org"
   echo "Repo owner:       ${owner:-"(not a GitHub repo)"}"
   echo "Required account: ${required_account:-"(unknown)"}"
 
