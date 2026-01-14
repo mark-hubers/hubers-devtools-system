@@ -825,6 +825,7 @@ cmd_help() {
     echo "  list <cat>     List tools in a category"
     echo "  doctor         Diagnose system issues"
     echo "  export         Export your tool list"
+    echo "  test [name]    Run verification tests"
     echo "  help           Show this help"
     echo ""
     echo "Examples:"
@@ -835,6 +836,8 @@ cmd_help() {
     echo "  devsetup search kubernetes    # Find k8s tools"
     echo "  devsetup list asdf_tools      # List version-managed tools"
     echo "  devsetup versions             # Show all installed versions"
+    echo "  devsetup test                 # Run all verification tests"
+    echo "  devsetup test tools           # Run specific test category"
     echo ""
     echo "asdf Version Management:"
     echo "  After installing asdf_tools, manage versions with:"
@@ -867,6 +870,7 @@ main() {
         list)            cmd_list "$@" ;;
         doctor)          cmd_doctor ;;
         export)          cmd_export ;;
+        test)            "$SCRIPT_DIR/tests/test-runner.sh" "$@" ;;
         versions)        cmd_versions ;;
         asdf-update)     cmd_asdf_update ;;
         tool-versions)   cmd_tool_versions ;;
