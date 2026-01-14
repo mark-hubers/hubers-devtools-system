@@ -129,53 +129,42 @@ EOF
 }
 
 # ============================================================================
-# iTerm2 File Transfer (easy-to-remember aliases)
+# iTerm2 File Transfer Helpers
 # ============================================================================
-# it2dl = download file FROM remote TO your Mac
-# it2ul = upload file FROM your Mac TO remote
+# These commands help you SET UP and REMEMBER the iTerm2 transfer commands.
+# The actual transfer commands (it2dl, it2ul) run on the REMOTE server.
+# ============================================================================
 
-# Memorable aliases for iTerm2 transfers
-alias download='it2dl'      # Download from remote: download <file>
-alias dl='it2dl'            # Short version
-alias upload='it2ul'        # Upload to remote: upload
-alias ul='it2ul'            # Short version
-
-# Install iTerm2 utils on a remote server (run this ON the remote)
-# Usage: SSH to server, then run: iterm-install-remote
-alias iterm-install-remote='curl -L https://iterm2.com/shell_integration/install_shell_integration_and_utilities.sh | bash'
-
-# Quick command to install on remote via SSH (run from local)
+# Install iTerm2 utils on a remote server via SSH
 # Usage: iterm-setup-remote myserver
 iterm-setup-remote() {
     local host="${1:?Usage: iterm-setup-remote <host>}"
     echo "Installing iTerm2 utilities on $host..."
     ssh "$host" 'curl -L https://iterm2.com/shell_integration/install_shell_integration_and_utilities.sh | bash'
     echo ""
-    echo "Done! Now on $host you can use:"
-    echo "  download <file>  - download file to your Mac"
-    echo "  upload           - upload file from your Mac"
+    echo "Done! Now when SSH'd into $host, you can use:"
+    echo "  it2dl <file>   - sends file to your Mac's Downloads"
+    echo "  it2ul          - receive file uploaded from your Mac"
 }
 
-# Show iTerm2 transfer help
+# Show iTerm2 transfer commands (what to run on remote)
 iterm-help() {
     cat << 'EOF'
 iTerm2 File Transfer Commands
 =============================
 
-FROM YOUR MAC (local):
-  upload              Interactive upload to current SSH session
-  ul                  Same as upload
+RUN ON REMOTE SERVER (after installing):
+  it2dl <file>      Send file to your Mac's Downloads folder
+  it2ul             Receive upload from your Mac (interactive)
 
-ON REMOTE SERVER:
-  download <file>     Download file to your Mac's Downloads folder
-  dl <file>           Same as download
+INSTALL ON NEW SERVER:
+  From your Mac:    iterm-setup-remote <host>
+  Or SSH in, run:   curl -L https://iterm2.com/shell_integration/install_shell_integration_and_utilities.sh | bash
 
-SETUP ON NEW SERVER:
-  iterm-setup-remote <host>    Install utils via SSH
+OTHER USEFUL COMMANDS (on remote):
+  it2copy           Copy text to your Mac's clipboard
+  imgcat <file>     Display image in terminal
 
-  Or SSH in and run:
-  curl -L https://iterm2.com/shell_integration/install_shell_integration_and_utilities.sh | bash
-
-NOTE: These only work in iTerm2, not other terminals!
+NOTE: Only works in iTerm2!
 EOF
 }

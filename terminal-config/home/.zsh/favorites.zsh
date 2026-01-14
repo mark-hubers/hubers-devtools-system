@@ -82,8 +82,7 @@ bat <file>         | Cat + syntax highlight        || ll              | Better l
 tree -L 2          | Tree depth 2                  || cat f | jq .    | Pretty JSON
 #
 #= SSH FILE TRANSFER (iTerm2)
-download <file>    | Download from remote (it2dl)  || upload          | Upload to remote (it2ul)
-dl <file>          | Short for download            || ul              | Short for upload
+it2dl <file>       | Download to Mac (run on remote)|| it2ul          | Upload from Mac (on remote)
 iterm-setup-remote | Install utils on SSH server   || iterm-help      | Show transfer commands
 push file host:~   | Upload + progress (rsync)     || pull host:f .   | Download + progress
 sync-to dir h:dir  | Sync folder TO remote         || sync-from h:d d | Sync folder FROM
