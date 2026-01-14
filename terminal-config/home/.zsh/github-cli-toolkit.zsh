@@ -466,7 +466,7 @@ typeset -gA GH_ACCOUNT_ALIAS
 # Run gh command as a specific account (for scripts/automation)
 # Usage: gh-as work gh repo list org-name
 #        gh-as personal gh api user
-#        gh-as Mark-Hubers_alvaria gh repo create ...
+#        gh-as your-work-account gh repo create ...
 gh-as() {
   local account_ref="$1"
   shift
@@ -475,7 +475,7 @@ gh-as() {
     echo "Usage: gh-as <account|alias> <gh command...>"
     echo ""
     echo "Examples:"
-    echo "  gh-as work gh repo list alvaria-bu"
+    echo "  gh-as work gh repo list your-org"
     echo "  gh-as personal gh api user"
     echo ""
     echo "Aliases (set in ~/.zshrc_hubers):"

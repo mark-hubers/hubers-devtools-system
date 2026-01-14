@@ -1,8 +1,7 @@
 #!/bin/zsh
 # ============================================================================
 # Bookmark System - PRODUCTION VERSION
-# Fixed by Claude Opus 4.5 - December 2025
-# 
+#
 # Features:
 #   bm name /path     - Save bookmark
 #   bm name .         - Save current directory  
