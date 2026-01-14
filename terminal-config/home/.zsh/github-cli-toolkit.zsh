@@ -308,9 +308,13 @@ GH_DIR_ACCOUNT_MAP=(
   # "$HOME/personal/*" "mark-hubers"  # All repos in ~/personal/ use personal
 )
 
-# Get current gh account
+# Get current gh account (the active one)
 _gh_current_account() {
-  gh auth status 2>&1 | grep "Logged in to github.com account" | sed 's/.*account \([^ ]*\).*/\1/'
+  # Find the account where "Active account: true" appears after "Logged in"
+  gh auth status 2>&1 | awk '
+    /Logged in to github.com account/ { acct = $7; gsub(/\(.*/, "", acct) }
+    /Active account: true/ { print acct; exit }
+  '
 }
 
 # Get repo owner from current directory
