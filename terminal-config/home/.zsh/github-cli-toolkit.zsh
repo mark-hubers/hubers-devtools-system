@@ -453,7 +453,8 @@ GH_ACCOUNT_LABEL=(
 # Shorthand aliases for accounts (for gh-as command)
 # Add in ~/.zshrc_hubers: GH_ACCOUNT_ALIAS+=("work" "My-Work-Account")
 typeset -gA GH_ACCOUNT_ALIAS
-GH_ACCOUNT_ALIAS=(
+# Only set defaults if not already defined (preserves ~/.zshrc_hubers values)
+(( ${#GH_ACCOUNT_ALIAS} == 0 )) && GH_ACCOUNT_ALIAS=(
   # "work"      "Work-Account-Name"
   # "personal"  "Personal-Account-Name"
 )
