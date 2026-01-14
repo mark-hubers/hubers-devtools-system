@@ -450,6 +450,65 @@ GH_ACCOUNT_LABEL=(
   # "work-account"  "work@company.com (work admin)"
 )
 
+# Shorthand aliases for accounts (for gh-as command)
+# Add in ~/.zshrc_hubers: GH_ACCOUNT_ALIAS+=("work" "My-Work-Account")
+typeset -gA GH_ACCOUNT_ALIAS
+GH_ACCOUNT_ALIAS=(
+  # "work"      "Work-Account-Name"
+  # "personal"  "Personal-Account-Name"
+)
+
+# ====================================
+# SCRIPT HELPERS
+# ====================================
+
+# Run gh command as a specific account (for scripts/automation)
+# Usage: gh-as work gh repo list org-name
+#        gh-as personal gh api user
+#        gh-as Mark-Hubers_alvaria gh repo create ...
+gh-as() {
+  local account_ref="$1"
+  shift
+
+  if [[ -z "$account_ref" ]] || [[ $# -eq 0 ]]; then
+    echo "Usage: gh-as <account|alias> <gh command...>"
+    echo ""
+    echo "Examples:"
+    echo "  gh-as work gh repo list alvaria-bu"
+    echo "  gh-as personal gh api user"
+    echo ""
+    echo "Aliases (set in ~/.zshrc_hubers):"
+    for alias acct in ${(kv)GH_ACCOUNT_ALIAS}; do
+      echo "  $alias -> $acct"
+    done
+    return 1
+  fi
+
+  # Resolve alias to account name
+  local account="${GH_ACCOUNT_ALIAS[$account_ref]:-$account_ref}"
+
+  # Get current account to restore later
+  local original_account=$(_gh_current_account)
+
+  # Switch, run command, switch back
+  gh auth switch --user "$account" &>/dev/null
+  if [[ $? -ne 0 ]]; then
+    echo "Error: Could not switch to account '$account'"
+    return 1
+  fi
+
+  # Run the command
+  "$@"
+  local exit_code=$?
+
+  # Switch back to original
+  if [[ -n "$original_account" && "$original_account" != "$account" ]]; then
+    gh auth switch --user "$original_account" &>/dev/null
+  fi
+
+  return $exit_code
+}
+
 # Get the default org for an account
 _gh_default_org() {
   local account="${1:-$(_gh_current_account)}"
