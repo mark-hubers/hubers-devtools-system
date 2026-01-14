@@ -73,6 +73,46 @@ else
   echo "   📝 Your personal customizations are safe and untouched!"
 fi
 
+# ============================================================================
+# Update favorites with new sections (merge, don't overwrite)
+# ============================================================================
+echo "📋 Checking favorites for new sections..."
+FAVORITES_FILE="${HOME}/.zsh/my-favorites.txt"
+
+if [ -f "$FAVORITES_FILE" ]; then
+  # Extract the default template from favorites.zsh (between FAVEOF markers)
+  TEMPLATE_SECTIONS=$(sed -n "/cat > \"\$FAVORITES_FILE\" << 'FAVEOF'/,/^FAVEOF$/p" home/.zsh/favorites.zsh | grep "^#= " | sed 's/^#= //')
+  USER_SECTIONS=$(grep "^#= " "$FAVORITES_FILE" | sed 's/^#= //')
+
+  # Find sections in template that aren't in user's file
+  NEW_SECTIONS=""
+  while IFS= read -r section; do
+    if ! echo "$USER_SECTIONS" | grep -q "^${section}$"; then
+      NEW_SECTIONS="${NEW_SECTIONS}${section}\n"
+    fi
+  done <<< "$TEMPLATE_SECTIONS"
+
+  if [ -n "$NEW_SECTIONS" ]; then
+    echo "   🆕 New sections available: $(echo -e "$NEW_SECTIONS" | tr '\n' ' ')"
+
+    # Extract and append each new section from favorites.zsh template
+    while IFS= read -r section; do
+      [ -z "$section" ] && continue
+      # Extract section content from template
+      SECTION_CONTENT=$(sed -n "/cat > \"\$FAVORITES_FILE\" << 'FAVEOF'/,/^FAVEOF$/p" home/.zsh/favorites.zsh | \
+        sed -n "/^#= ${section}$/,/^#$/p")
+      if [ -n "$SECTION_CONTENT" ]; then
+        echo "$SECTION_CONTENT" >> "$FAVORITES_FILE"
+        echo "   ✅ Added: $section"
+      fi
+    done <<< "$(echo -e "$NEW_SECTIONS")"
+  else
+    echo "   ✅ Favorites up to date"
+  fi
+else
+  echo "   📝 Favorites will be created on first shell load"
+fi
+
 echo ""
 echo "✅ Core files installed!"
 echo ""
