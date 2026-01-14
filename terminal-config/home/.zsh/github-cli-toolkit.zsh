@@ -80,15 +80,16 @@ ghadd() {
   echo "What type of account are you adding?"
   echo ""
   echo "  1) Personal GitHub (github.com) - Web browser login"
-  echo "  2) Personal GitHub (github.com) - Paste token (easier for multi-account)"
-  echo "  3) Work - GitHub Enterprise Cloud (SSO/SAML) - github.com with company SSO"
+  echo "  2) Personal GitHub (github.com) - Paste token"
+  echo "  3) Work - GitHub Enterprise Cloud (SSO/SAML) - browser login with company SSO"
   echo "  4) Work - GitHub Enterprise Server (self-hosted) - your-company.github.com"
+  echo "  5) Work - Load token from 1Password (op:// reference)"
+  echo "  6) Work - Paste existing token (admin token, PAT, etc.)"
   echo ""
-  echo "💡 Most work accounts use option 3 (Enterprise Cloud)"
-  echo "   Option 4 is only if your company runs their own GitHub server"
+  echo "💡 Option 3 = Browser SSO, Option 5/6 = Use existing admin token"
   echo ""
 
-  read "choice?Select (1-4): "
+  read "choice?Select (1-6): "
   echo ""
 
   case $choice in
@@ -144,6 +145,71 @@ ghadd() {
       if [[ -n "$hostname" ]]; then
         echo ""
         gh auth login --hostname "$hostname" --git-protocol https --web
+      fi
+      ;;
+    5)
+      echo "🔐 Work - Load token from 1Password"
+      echo ""
+      # Check if op is available
+      if ! command -v op &>/dev/null; then
+        echo "❌ 1Password CLI (op) not found. Install it first."
+        return 1
+      fi
+      # Check if signed in
+      if ! op whoami &>/dev/null; then
+        echo "⚠️  Not signed into 1Password. Run: eval \$(op signin)"
+        return 1
+      fi
+      # Check for multiple accounts
+      local op_accounts op_account_flag=""
+      op_accounts=$(op account list --format json 2>/dev/null | jq -r '.[].url' 2>/dev/null)
+      if [[ $(echo "$op_accounts" | wc -l) -gt 1 ]]; then
+        echo "📋 Multiple 1Password accounts found:"
+        op account list 2>/dev/null | tail -n +2
+        echo ""
+        read "opacct?Enter account URL (e.g., my.1password.com): "
+        if [[ -n "$opacct" ]]; then
+          op_account_flag="--account $opacct"
+        fi
+        echo ""
+      fi
+      echo "Enter the 1Password reference for your token."
+      echo "Format: op://Vault/Item/Field"
+      echo ""
+      echo "Example: op://Private/github-work/admin-token"
+      echo ""
+      read "opref?1Password reference: "
+      if [[ -n "$opref" ]]; then
+        echo ""
+        echo "Fetching token from 1Password..."
+        local token
+        token=$(op read "$opref" $op_account_flag 2>&1)
+        if [[ $? -ne 0 ]] || [[ "$token" == *"[ERROR]"* ]]; then
+          echo "⚠️  Failed to read token. Error:"
+          echo "$token"
+          return 1
+        fi
+        echo "$token" | gh auth login --hostname github.com --git-protocol https --with-token
+        if [[ $? -eq 0 ]]; then
+          echo "✅ Token loaded from 1Password!"
+        fi
+      fi
+      ;;
+    6)
+      echo "🔑 Work - Paste existing token"
+      echo ""
+      echo "This is for admin tokens, PATs, or any existing token."
+      echo ""
+      echo "Paste your token and press Enter:"
+      echo "(Token will be hidden)"
+      echo ""
+      read -s "token?Token: "
+      echo ""
+      if [[ -n "$token" ]]; then
+        echo "$token" | gh auth login --hostname github.com --git-protocol https --with-token
+        if [[ $? -eq 0 ]]; then
+          echo "✅ Token added!"
+        fi
       fi
       ;;
     *)
