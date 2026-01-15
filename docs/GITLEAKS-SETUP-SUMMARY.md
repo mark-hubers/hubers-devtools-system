@@ -228,3 +228,19 @@ tags = ["pii", "ssn"]
 ---
 
 *This setup applies globally to all git repos on this Mac.*
+
+---
+
+## Architecture Note
+
+**Gitleaks is included in hubers-devtools-system** because secret scanning should be on by default - one bad commit can leak credentials permanently.
+
+**Future git tooling should go in a plugin** (e.g., `hubers-devtools-git` or similar):
+- Linting frameworks (megalinter, etc.)
+- Commit message tools (commitizen, etc.)
+- Additional scanners (trufflehog, etc.)
+- Repo setup automation
+
+This keeps the core devtools-system minimal while allowing opt-in for heavier git workflows.
+
+**Full reference documentation:** `~/hubers-docs/tools/gitleaks.md`
