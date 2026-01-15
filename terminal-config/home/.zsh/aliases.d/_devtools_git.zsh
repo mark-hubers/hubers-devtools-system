@@ -19,3 +19,7 @@ alias gco='git checkout'
 alias gb='git branch'
 alias gl='git log --oneline --graph --decorate'
 alias glog='git log --pretty=format:"%C(yellow)%h%Creset %C(blue)%ad%Creset | %s%C(green)%d%Creset %C(bold blue)[%an]%Creset" --date=short'
+
+# Gitleaks - secret scanning
+alias glscan='gitleaks detect --source . -v'    # Scan repo for secrets
+alias glstaged='gitleaks protect --staged -v'   # Scan staged files only
