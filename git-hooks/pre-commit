@@ -1,0 +1,39 @@
+#!/bin/zsh
+# Global pre-commit hook - scans for secrets before allowing commit
+# Source: hubers-devtools-system/git-hooks/pre-commit
+# Installed to: ~/.git-hooks/pre-commit
+#
+# This hook runs gitleaks on staged changes to prevent accidentally
+# committing API keys, passwords, tokens, or other secrets.
+
+# Check if gitleaks is installed
+if ! command -v gitleaks &>/dev/null; then
+    echo ""
+    echo "========================================"
+    echo "  WARNING: gitleaks not installed"
+    echo "========================================"
+    echo ""
+    echo "Install with: brew install gitleaks"
+    echo "Commit proceeding without secret scanning."
+    echo ""
+    exit 0
+fi
+
+# Run gitleaks on staged changes
+gitleaks protect --staged --exit-code 1
+
+if [[ $? -ne 0 ]]; then
+    echo ""
+    echo "========================================"
+    echo "  COMMIT BLOCKED - Secrets detected!"
+    echo "========================================"
+    echo ""
+    echo "Review the findings above and either:"
+    echo "  1. Remove the secret from the file"
+    echo "  2. Add to .gitleaksignore if false positive"
+    echo ""
+    echo "To bypass (use with caution):"
+    echo "  git commit --no-verify"
+    echo ""
+    exit 1
+fi

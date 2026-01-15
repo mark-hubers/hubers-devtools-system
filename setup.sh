@@ -17,6 +17,7 @@
 #   7. Sets up framework and devsetup command
 #   8. Installs terminal configuration
 #   9. Discovers and offers to set up plugins (work-tunnel, etc.)
+#  10. Installs global git pre-commit hook (gitleaks secret scanning)
 #
 # Optional (not run automatically):
 #   - Git multi-account setup: git-things/hubers_git_setup.sh
@@ -576,6 +577,44 @@ else
         done
     fi
 fi
+
+# ============================================================================
+# Step 12: Git Hooks (gitleaks pre-commit)
+# ============================================================================
+print_step 12 "Git Hooks (Secret Scanning)"
+
+HOOKS_DIR="$HOME/.git-hooks"
+HOOK_SOURCE="$INSTALL_DIR/git-hooks/pre-commit"
+
+if [[ -f "$HOOKS_DIR/pre-commit" ]]; then
+    success "Git pre-commit hook already installed"
+else
+    echo "Installing global git pre-commit hook..."
+
+    # Create hooks directory
+    mkdir -p "$HOOKS_DIR"
+
+    # Copy hook from repo
+    if [[ -f "$HOOK_SOURCE" ]]; then
+        cp "$HOOK_SOURCE" "$HOOKS_DIR/pre-commit"
+        chmod +x "$HOOKS_DIR/pre-commit"
+        success "Pre-commit hook installed to $HOOKS_DIR/"
+    else
+        warning "Hook source not found at $HOOK_SOURCE"
+    fi
+fi
+
+# Configure git to use global hooks (idempotent)
+CURRENT_HOOKS_PATH=$(git config --global core.hooksPath 2>/dev/null || echo "")
+if [[ "$CURRENT_HOOKS_PATH" != "$HOOKS_DIR" ]]; then
+    git config --global core.hooksPath "$HOOKS_DIR"
+    success "Git configured to use global hooks"
+else
+    success "Git already configured for global hooks"
+fi
+
+info "All git commits will now be scanned for secrets"
+echo "  See: $INSTALL_DIR/docs/GITLEAKS-SETUP-SUMMARY.md"
 
 # ============================================================================
 # Done!

@@ -627,6 +627,13 @@ security:
     check: "which pinentry-mac"
     required: false
 
+  - name: gitleaks
+    brew: gitleaks
+    description: "Scan git repos for secrets/credentials before commit"
+    check: "gitleaks version"
+    required: true
+    docs: "https://github.com/gitleaks/gitleaks"
+
 # ============================================================================
 # GUI APPS (Casks)
 # ============================================================================
