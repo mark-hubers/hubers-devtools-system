@@ -7,17 +7,71 @@
 # For custom aliases, create your own file without _devtools_ prefix
 # ============================================================================
 
-# eza (modern ls)
+# eza (modern ls) with wrapper for muscle-memory compatibility
 if command -v eza &> /dev/null; then
-  alias ls='eza --icons --git'
+  # Wrapper function to translate common ls flags to eza
+  ls() {
+    local args=("$@")
+    local translated=()
+    local has_ltr=false
+    local has_la=false
+    local path_args=()
+
+    for arg in "${args[@]}"; do
+      case "$arg" in
+        -ltr|-ltra|-latr|-ltrah|-ltrh)
+          has_ltr=true
+          has_la=true
+          ;;
+        -lt|-lth)
+          # newest first (eza default for --sort modified)
+          translated+=(--sort=modified --reverse -l)
+          ;;
+        -la|-al)
+          has_la=true
+          ;;
+        -l)
+          translated+=(-l)
+          ;;
+        -a)
+          translated+=(-a)
+          ;;
+        -h)
+          translated+=(-h)
+          ;;
+        -*)
+          # Pass through other flags (may or may not work)
+          translated+=("$arg")
+          ;;
+        *)
+          # Path argument
+          path_args+=("$arg")
+          ;;
+      esac
+    done
+
+    # Build final command
+    if [[ "$has_ltr" == true ]]; then
+      # -ltr = long, all, sort by time (oldest first / newest last)
+      command eza --icons --git -la --sort=modified "${path_args[@]}"
+    elif [[ "$has_la" == true ]]; then
+      command eza --icons --git -la "${translated[@]}" "${path_args[@]}"
+    elif [[ ${#translated[@]} -gt 0 || ${#path_args[@]} -gt 0 ]]; then
+      command eza --icons --git "${translated[@]}" "${path_args[@]}"
+    else
+      command eza --icons --git
+    fi
+  }
+
   alias ll='eza --icons --git -lah --sort=modified --reverse'
   alias dir='eza --icons --git -lah --sort=modified --reverse'
   alias la='eza --icons --git -a'
   alias lt='eza --icons --git --tree --level=2'
   alias l='eza --icons --git -lh'
-  alias ltr='eza --icons --git -la --sort modified'
+  alias ltr='eza --icons --git -la --sort=modified'
   alias lsr='/bin/ls -ltr'
   alias llr='/bin/ls -la'
+  alias realls='/bin/ls'
 else
   alias ll='ls -latro'
   alias dir='ls -latro'
