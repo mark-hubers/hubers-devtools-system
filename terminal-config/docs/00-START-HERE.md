@@ -77,6 +77,8 @@ th <TAB>                 # See all help topics
 - **[GITHUB-CLI-COMPLETE-GUIDE.md](COMPREHENSIVE/GITHUB-CLI-COMPLETE-GUIDE.md)** - Complete GitHub CLI with all 42 commands explained
 - **[AWS-SSO-COMPLETE-GUIDE.md](COMPREHENSIVE/AWS-SSO-COMPLETE-GUIDE.md)** - Complete AWS SSO setup and management
 - **[MODERN-TOOLS-REFERENCE.md](COMPREHENSIVE/MODERN-TOOLS-REFERENCE.md)** - Complete modern tools reference
+- **[ITERM2-ACCESSIBILITY-SETTINGS.md](COMPREHENSIVE/ITERM2-ACCESSIBILITY-SETTINGS.md)** - iTerm2 settings for low vision/accessibility
+- **[ITERM2-SSH-GUIDE.md](COMPREHENSIVE/ITERM2-SSH-GUIDE.md)** - SSH tunneling, port forwarding, jump hosts
 - **[AI-NOTES-PROJECT-SPEC.md](COMPREHENSIVE/AI-NOTES-PROJECT-SPEC.md)** - Future AI features specification
 
 ---

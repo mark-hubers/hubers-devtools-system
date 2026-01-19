@@ -76,3 +76,79 @@ zsh -c 'source ~/.zshrc' 2>&1 | grep -i "error\|parse"
 
 # 3. If clean, open new terminal to verify
 ```
+
+---
+
+<!--
+================================================================================
+ADDITIONAL CLAUDE.MD FEATURES
+================================================================================
+The sections below show what else you can add to CLAUDE.md files.
+Uncomment and customize any that are useful.
+See ~/hubers-docs/tools/CLAUDE-MD-GUIDE.md for full documentation.
+================================================================================
+-->
+
+
+<!--
+## On Session Start
+
+At the start of each session, check if `NEXT-SESSION-NOTES.md` exists.
+If so, read it first for context from the last session.
+-->
+
+
+<!--
+## On Session End
+
+When Mark says "done for the day", "wrap up", "save this", or similar:
+1. Update NEXT-SESSION-NOTES.md with what was done and what's next
+2. Ask if Mark wants to commit changes
+3. Keep it brief - bullet points and tables
+-->
+
+
+<!--
+## Git Commits
+
+- Use conventional commits (feat:, fix:, docs:, chore:)
+- Always ask before committing
+- Never push without asking
+- Test with INSTALL.sh before committing zsh changes
+-->
+
+
+<!--
+## Common Tasks
+
+When Mark says "test it":
+1. Run ./terminal-config/INSTALL.sh
+2. Check for errors
+3. Report results
+
+When Mark says "add a new alias":
+1. Ask what the alias should do
+2. Add to appropriate .zsh file in terminal-config/home/.zsh/
+3. Run INSTALL.sh
+4. Test in new terminal
+-->
+
+
+<!--
+## Do NOT Do
+
+- Never edit ~/.zshrc directly (use source files)
+- Never edit ~/.zsh/* directly (use source files)
+- Don't commit without running INSTALL.sh first
+- Don't add features without asking about location
+-->
+
+
+<!--
+## Vocabulary
+
+- "devtools" = this system (hubers-devtools-system)
+- "extensions" = plugins that add functionality
+- "favorites" = the favorites.zsh bookmark system
+- "tunnel" = SSH tunnel to work Mac (separate repo)
+-->

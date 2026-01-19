@@ -18,6 +18,45 @@ _show_doc() {
 }
 
 # ============================================================================
+# Extension Help Topics - Dynamic Discovery
+# ============================================================================
+# Extensions can register help topics by defining:
+#   _<name>_help_topics()  - Returns "topic:Description" lines
+#   _<name>_help_handler() - Handles displaying help for topic
+#
+# Example:
+#   _work_tunnel_help_topics() {
+#       echo "work-tunnel:Work Mac SSH tunnel commands"
+#   }
+#   _work_tunnel_help_handler() {
+#       case "$1" in work-tunnel) work-help ;; esac
+#   }
+# ============================================================================
+
+# Collect all extension help topics
+_get_extension_help_topics() {
+  local funcs=(${(k)functions[(I)_*_help_topics]})
+  for func in "${funcs[@]}"; do
+    # Skip our own internal functions
+    [[ "$func" == "_get_extension_help_topics" ]] && continue
+    [[ "$func" == "_get_all_help_topics" ]] && continue
+    $func 2>/dev/null
+  done
+}
+
+# Try to handle topic via extension handler
+_try_extension_handler() {
+  local topic="$1"
+  local funcs=(${(k)functions[(I)_*_help_handler]})
+  for func in "${funcs[@]}"; do
+    if $func "$topic" 2>/dev/null; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# ============================================================================
 # Modern Tools Reference
 # ============================================================================
 
@@ -67,6 +106,7 @@ alias cmdref='tools'
 # ============================================================================
 
 termhelp() {
+  # Built-in topics
   local topics=(
     "fzf:Fuzzy finding - Tab completion, Ctrl+R, file search"
     "dirs:Directory jumping - Bookmarks, zoxide, never lose folders"
@@ -95,6 +135,15 @@ termhelp() {
     "cheat:Cheat sheet - One-page quick reference"
   )
 
+  # Add extension topics dynamically
+  local ext_topics
+  ext_topics=$(_get_extension_help_topics 2>/dev/null)
+  if [[ -n "$ext_topics" ]]; then
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && topics+=("$line")
+    done <<< "$ext_topics"
+  fi
+
   local choice="$1"
 
   if [[ -z "$choice" ]]; then
@@ -109,6 +158,7 @@ termhelp() {
     echo ""
   fi
 
+  # Try built-in topics first
   case "$choice" in
     fzf)        _show_doc ~/.zsh/docs/DAILY-USE/FZF-FUZZY-FINDING.md ;;
     dirs)       _show_doc ~/.zsh/docs/DAILY-USE/DIRECTORY-JUMPING.md ;;
@@ -134,13 +184,19 @@ termhelp() {
     cheat)      _show_doc ~/.zsh/docs/REFERENCE/CHEAT-SHEET.md ;;
     vim)        _show_doc ~/.zsh/docs/REFERENCE/VIM-REFERENCE.md ;;
     vimode)     _show_doc ~/.zsh/docs/DAILY-USE/ZSH-VI-MODE.md ;;
-    *) echo "Unknown topic: $choice. Run 'th' to see all topics." ;;
+    *)
+      # Try extension handlers
+      if ! _try_extension_handler "$choice" 2>/dev/null; then
+        echo "Unknown topic: $choice. Run 'th' to see all topics."
+      fi
+      ;;
   esac
 }
 
 # Tab completion for termhelp
 _termhelp() {
   local -a topics
+  # Built-in topics
   topics=(
     'fzf:Fuzzy finding'
     'dirs:Directory jumping'
@@ -168,6 +224,16 @@ _termhelp() {
     'all:All commands A-Z'
     'cheat:Cheat sheet'
   )
+
+  # Add extension topics dynamically
+  local ext_topics
+  ext_topics=$(_get_extension_help_topics 2>/dev/null)
+  if [[ -n "$ext_topics" ]]; then
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && topics+=("$line")
+    done <<< "$ext_topics"
+  fi
+
   _describe 'help topic' topics
 }
 

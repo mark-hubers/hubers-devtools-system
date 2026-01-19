@@ -50,6 +50,16 @@
 # export KUBECONFIG="~/.kube/company-config"
 # alias vpn-connect='sudo openconnect --config ~/.vpn/config'
 
+# --- iTerm2 Accessibility (optional) ---
+# Set bright tab color for all new iTerm2 tabs (easier to see)
+# Uncomment to enable - see docs/COMPREHENSIVE/ITERM2-ACCESSIBILITY-SETTINGS.md
+# if [[ "$TERM_PROGRAM" == "iTerm.app" ]] || [[ -n "$ITERM_SESSION_ID" ]]; then
+#     # Bright green background (high visibility)
+#     printf "\033]6;1;bg;red;brightness;100\007"
+#     printf "\033]6;1;bg;green;brightness;255\007"
+#     printf "\033]6;1;bg;blue;brightness;100\007"
+# fi
+
 # ============================================================================
 # YOUR CUSTOMIZATIONS START HERE
 # ============================================================================
