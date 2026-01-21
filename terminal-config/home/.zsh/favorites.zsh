@@ -187,10 +187,105 @@ _fav_footer() {
 }
 
 # Show favorites (colorful 2-column format) - standalone command
+# Usage: fav          - show all
+#        fav <section> - show only that section (e.g., fav git, fav ssh)
 fav() {
-    _fav_content
-    _fav_footer
+    if [[ -n "$1" ]]; then
+        _fav_section "$1"
+    else
+        _fav_content
+        _fav_footer
+    fi
 }
+
+# Show only a specific section
+_fav_section() {
+    local target="${1:l}"  # lowercase
+    _favorites_init
+    _fav_colors
+
+    local DISPLAY_WIDTH=105
+    local in_section=false
+    local found=false
+
+    while IFS= read -r line; do
+        # Section header
+        if [[ "$line" =~ ^#=[[:space:]]*(.+) ]]; then
+            local section="${match[1]}"
+            local section_lower="${section:l}"
+
+            # Check if this section matches (partial match OK)
+            if [[ "$section_lower" == *"$target"* ]]; then
+                in_section=true
+                found=true
+
+                # Display header
+                local section_len=${#section}
+                local dash_count=$((DISPLAY_WIDTH - section_len - 6))
+                (( dash_count < 5 )) && dash_count=5
+                local dashes=$(printf '─%.0s' $(seq 1 $dash_count))
+                echo -e "${C_MAGENTA}${C_BOLD} ─── ${section} ${dashes}${C_RESET}"
+            else
+                in_section=false
+            fi
+        elif [[ "$line" =~ ^# ]]; then
+            continue
+        elif $in_section && [[ -n "$line" ]]; then
+            # Parse and display command line
+            local col1="${line%%||*}"
+            local col2="${line#*||}"
+
+            local cmd1="${col1%%|*}"; local desc1="${col1#*|}"
+            cmd1="${cmd1%% }"; cmd1="${cmd1## }"; desc1="${desc1%% }"; desc1="${desc1## }"
+
+            local cmd2="" desc2=""
+            if [[ "$col2" != "$line" && -n "$col2" ]]; then
+                cmd2="${col2%%|*}"; desc2="${col2#*|}"
+                cmd2="${cmd2%% }"; cmd2="${cmd2## }"; desc2="${desc2%% }"; desc2="${desc2## }"
+            fi
+
+            if [[ -n "$cmd1" ]]; then
+                printf "  ${C_GREEN}%-18s${C_RESET} ${C_WHITE}%-28s${C_RESET}" "$cmd1" "$desc1"
+                if [[ -n "$cmd2" ]]; then
+                    printf " ${C_GRAY}│${C_RESET} ${C_GREEN}%-15s${C_RESET} ${C_WHITE}%s${C_RESET}" "$cmd2" "$desc2"
+                fi
+                echo ""
+            fi
+        fi
+    done < "$FAVORITES_FILE"
+
+    if ! $found; then
+        echo "No section matching '$1'. Available sections:"
+        _fav_list_sections
+    fi
+}
+
+# List available section names
+_fav_list_sections() {
+    _favorites_init
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^#=[[:space:]]*(.+) ]]; then
+            echo "  ${match[1]}"
+        fi
+    done < "$FAVORITES_FILE"
+}
+
+# Tab completion for fav
+_fav_completion() {
+    local -a sections
+
+    if [[ -f "$FAVORITES_FILE" ]]; then
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^#=[[:space:]]*(.+) ]]; then
+                # Use lowercase version for completion
+                sections+=("${match[1]:l}")
+            fi
+        done < "$FAVORITES_FILE"
+    fi
+
+    _describe 'sections' sections
+}
+compdef _fav_completion fav
 
 favedit() {
     _favorites_init
