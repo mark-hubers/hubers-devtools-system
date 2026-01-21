@@ -54,10 +54,11 @@ fh                 | Command history               || fkill           | Kill pro
 Ctrl+T             | Insert file path              || Ctrl+R          | History search
 #
 #= GIT
+gsync              | Sync branch with main/master  || gsync --step    | Step-by-step mode
+gnew <name>        | New branch from latest main   || gbrecent        | Recent branches
 lazygit            | Git terminal UI               || gs              | git status
-gp                 | git push                      || gpl             | git pull
-gco <branch>       | checkout branch               || gcob <n>     | checkout -b new
-glog               | Pretty log (30)               || gd              | git diff
+gco <branch>       | checkout branch               || gcob <n>        | checkout -b new
+glog               | Pretty log (30)               || th git          | Git help (recovery!)
 #
 #= GITHUB CLI
 ghlist             | List GitHub accounts          || ghadd           | Add account (guided)

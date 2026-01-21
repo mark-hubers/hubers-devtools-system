@@ -2,20 +2,27 @@
 # ============================================================================
 # Bookmark System - PRODUCTION VERSION
 #
-# Features:
-#   bm name /path     - Save bookmark
-#   bm name .         - Save current directory  
-#   bm .              - Quick save (uses folder name)
-#   bm name           - Jump to bookmark (supports fuzzy match)
+# Main command (bm) with subcommands:
 #   bm                - Interactive FZF menu
+#   bm <name>         - Jump to bookmark (fuzzy match)
+#   bm <name> <path>  - Save bookmark
+#   bm <name> .       - Save current directory
+#   bm .              - Quick save (uses folder name)
+#   bm list | ls      - List bookmarks
+#   bm help | -h      - Show help
+#   bm stats          - Usage statistics
+#   bm check          - Validate paths
+#   bm edit           - Edit bookmarks file
+#   bm back           - Return to previous location
+#   bm prune          - Remove broken bookmarks
+#
+# Standalone commands:
 #   bml               - List bookmarks + recent dirs from zoxide
-#   bmrm name         - Remove bookmark
+#   bmrm <name>       - Remove bookmark
 #   bmrename old new  - Rename bookmark
-#   bmedit            - Edit bookmarks in $EDITOR
-#   bmcheck           - Validate all paths
-#   bmstats           - Usage statistics
-#   bmback            - Return to previous location
-#   bmcode name       - Open in VS Code
+#   bmcode <name>     - Open in VS Code
+#   bmlist            - Alias for bml
+#   bmhelp            - Show help
 #
 # Critical notes:
 #   - Never use 'path' as variable (breaks ZSH $PATH)
@@ -40,23 +47,118 @@ bm() {
     _bm_interactive
     return $?
   fi
-  
+
   # Single "." - quick save with folder name
   if [[ "$1" == "." && -z "$2" ]]; then
     local auto_name=$(basename "$(pwd)")
     _bm_save "$auto_name" "."
     return $?
   fi
-  
+
+  # Subcommands (when single argument matches a command)
+  if [[ -z "$2" ]]; then
+    case "$1" in
+      list|ls)     bml; return $? ;;
+      help|-h)     _bm_help; return $? ;;
+      stats)       bmstats; return $? ;;
+      check)       bmcheck; return $? ;;
+      back)        bmback; return $? ;;
+      edit)        bmedit; return $? ;;
+      prune)       _bm_prune; return $? ;;
+    esac
+  fi
+
   # One argument - jump to bookmark
   if [[ -z "$2" ]]; then
     _bm_jump "$1"
     return $?
   fi
-  
+
   # Two arguments - save bookmark
   _bm_save "$1" "$2"
   return $?
+}
+
+# ============================================================================
+# Help
+# ============================================================================
+
+_bm_help() {
+  cat << 'EOF'
+📚 Bookmark System - Quick Reference
+
+USAGE:
+  bm                    Interactive FZF menu
+  bm <name>             Jump to bookmark (fuzzy match)
+  bm <name> <path>      Save bookmark
+  bm <name> .           Save current directory
+  bm .                  Quick save (uses folder name)
+
+SUBCOMMANDS:
+  bm list | ls          List all bookmarks
+  bm help | -h          Show this help
+  bm stats              Usage statistics
+  bm check              Validate paths
+  bm edit               Edit bookmarks file
+  bm back               Return to previous location
+  bm prune              Remove broken bookmarks
+
+OTHER COMMANDS:
+  bml                   List bookmarks + zoxide recent
+  bmrm <name>           Remove bookmark
+  bmrename <old> <new>  Rename bookmark
+  bmcode <name>         Open in VS Code
+
+EXAMPLES:
+  bm devtools ~/my-tools/hubers-devtools-system
+  bm docs .
+  bm .                  # saves as current folder name
+  bm dev                # fuzzy matches 'devtools'
+EOF
+}
+
+# ============================================================================
+# Prune - Remove broken bookmarks
+# ============================================================================
+
+_bm_prune() {
+  if [[ ! -s "$BOOKMARKS_FILE" ]]; then
+    echo "📚 No bookmarks to prune"
+    return 0
+  fi
+
+  echo "🔍 Scanning for broken bookmarks..."
+  echo ""
+
+  local broken_names=()
+  while IFS=: read -r name bookmark_path count timestamp; do
+    if [[ ! -d "$bookmark_path" ]]; then
+      broken_names+=("$name")
+      echo "❌ $name → $bookmark_path"
+    fi
+  done < "$BOOKMARKS_FILE"
+
+  if [[ ${#broken_names[@]} -eq 0 ]]; then
+    echo "✅ All bookmarks valid - nothing to prune"
+    return 0
+  fi
+
+  echo ""
+  echo "Found ${#broken_names[@]} broken bookmark(s)"
+  read -q "REPLY?Remove all broken bookmarks? (y/n) "
+  echo ""
+
+  if [[ "$REPLY" != "y" ]]; then
+    echo "❌ Cancelled"
+    return 1
+  fi
+
+  for name in "${broken_names[@]}"; do
+    command sed -i.bak "/^${name}:/d" "$BOOKMARKS_FILE"
+  done
+  command rm -f "${BOOKMARKS_FILE}.bak"
+
+  echo "✅ Removed ${#broken_names[@]} broken bookmark(s)"
 }
 
 # ============================================================================
@@ -66,7 +168,19 @@ bm() {
 _bm_save() {
   local name="$1"
   local bookmark_path="$2"
-  
+
+  # Warn if name conflicts with a subcommand
+  local reserved=(list ls help -h stats check back edit prune)
+  if (( ${reserved[(I)$name]} )); then
+    echo "⚠️  Warning: '$name' is a subcommand"
+    echo "   You won't be able to jump with 'bm $name' (it will run the command instead)"
+    echo "   Workaround: use 'bm' menu or rename later with 'bmrename $name newname'"
+    echo ""
+    read -q "REPLY?Continue anyway? (y/n) "
+    echo ""
+    [[ "$REPLY" != "y" ]] && return 1
+  fi
+
   # Resolve path
   if [[ "$bookmark_path" == "." ]]; then
     bookmark_path="$(pwd)"
@@ -549,6 +663,8 @@ compdef _bmrename_completion bmrename
 
 alias bookmarks='bml'
 alias bookmark='bm'
+alias bmlist='bml'
+alias bmhelp='_bm_help'
 
 # ============================================================================
 # Init Guard (prevent double-loading)

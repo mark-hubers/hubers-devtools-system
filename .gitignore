@@ -22,3 +22,9 @@ config/tools.local.yaml
 .local/
 *.local.json
 *.local.md
+
+# Claude chat history (auto-generated, not versioned)
+.chat-history.md
+
+# Claude Code local settings (machine-specific)
+.claude/
