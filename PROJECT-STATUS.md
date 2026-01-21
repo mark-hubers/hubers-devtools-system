@@ -1,39 +1,51 @@
 # Project Status: hubers-devtools-system
 
 ## Last Session
-**Date:** 2026-01-11
+**Date:** 2026-01-21
 **What we did:**
-- Added cert-* commands (cert-test, cert-chain, cert-dates, cert-san, etc.)
-- Added pfx-extract, pfx-info, cert-bundle for PFX files
-- Updated nethelp with all new commands
-- Fixed myip alias/function conflict
-- Documented in NETWORK-TOOLKIT.md
+- Added git workflow tools: `gsync`, `gnew`, `gbrecent`, `gbhistory`
+- Added `gaudit` - comprehensive git repo health check with interactive fixes
+- Enhanced bookmark system with subcommands: `bm list`, `bm help`, `bm prune`, etc.
+- Fixed `bm <TAB>` to show only bookmarks (not mixed with directories)
+- Added `fav <section>` filtering with tab completion (e.g., `fav git`)
+- Updated GIT-WORKFLOW.md documentation
+- Updated favorites with new git commands
 
 ## Current State
-- ✅ All cert commands working
-- ✅ PFX extraction working
-- ✅ Network toolkit complete
+- ✅ Git workflow tools working (`gsync`, `gnew`, `gaudit`)
+- ✅ Bookmark enhancements complete
+- ✅ Favorites section filtering working
+- ✅ All changes committed (3 commits ahead of origin)
+
+## Recent Commits (unpushed)
+- `e199085` - Add git workflow tools and enhance bookmark system
+- `8172a6d` - Fix bm tab completion to show only bookmarks
+- `fb88669` - Add fav <section> filtering with tab completion
 
 ## Next Up
+- [ ] Push commits to origin
 - [ ] Add Stream Deck buttons for common commands
 - [ ] Consider more AWS commands
-- [ ] Consider more Docker/K8s commands
 
 ## Quick Resume
 ```bash
-# Test commands:
-cert-test google.com
-nethelp
-cert-help
+# Test new commands:
+gsync --step        # Sync branch with main (step-by-step)
+gnew my-feature     # Create branch from latest main
+gaudit              # Check repo health
+gaudit --fix        # Interactive fixes
+fav git             # Show just git commands
+bm help             # Bookmark help
 
-# To continue development:
-claude --continue
+# Push changes:
+gp
 ```
 
-## Key Files
-- `terminal-config/home/.zsh/network-toolkit.zsh` - Network commands
-- `terminal-config/docs/TOOLKITS/NETWORK-TOOLKIT.md` - Documentation
-- `terminal-config/INSTALL.sh` - Run after changes
+## Key Files Changed
+- `terminal-config/home/.zsh/functions.d/_devtools_git.zsh` - Git functions
+- `terminal-config/home/.zsh/bookmarks.zsh` - Bookmark enhancements
+- `terminal-config/home/.zsh/favorites.zsh` - Section filtering
+- `terminal-config/docs/DEV-TOOLS/GIT-WORKFLOW.md` - Git docs
 
 ## Tips
 - Edit source files in repo, run INSTALL.sh, test in new terminal

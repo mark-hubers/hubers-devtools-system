@@ -9,6 +9,8 @@
 | `gsync --merge` | Use merge instead of rebase |
 | `gnew foo` | Create new branch from latest main |
 | `gnew foo --step` | Same, step-by-step |
+| `gaudit` | Git repo health check (6 checks) |
+| `gaudit --fix` | Interactive fixes for issues found |
 | `gbrecent` | Show recent branches by commit date |
 | `gbhistory` | Show branches by checkout history |
 | `gclean` | Delete merged branches |
@@ -243,6 +245,8 @@ glog      # git log --pretty
 ```bash
 gsync              # Sync branch with main/master
 gnew <name>        # New branch from latest main
+gaudit             # Git repo health check
+gaudit --fix       # Interactive fixes
 gbrecent           # Recent branches by commit date
 gbhistory          # Recent branches by checkout history
 gcob <name>        # git checkout -b
@@ -256,6 +260,31 @@ gcom "msg"         # git add -A && commit
 gpush "msg"        # git add -A && commit && push
 gdiff              # git diff with delta
 ```
+
+---
+
+## Repository Health Check (gaudit)
+
+Run `gaudit` in any git repo to check for common issues:
+
+```bash
+gaudit              # Show all issues
+gaudit --fix        # Interactive mode - offer to fix each issue
+```
+
+**What it checks:**
+1. **Detached HEAD** - Are you on a branch?
+2. **Uncommitted changes** - Staged, unstaged, untracked files
+3. **Unpushed commits** - Local commits not on remote
+4. **main/master confusion** - Both branches exist? Safe to delete one?
+5. **Branch sync** - Is your branch behind origin?
+6. **Stale branches** - Local branches tracking deleted remotes
+
+**Smart features:**
+- Detects GitHub vs Bitbucket vs GitLab
+- Shows correct PR creation command for your platform
+- Shows GitHub account when relevant
+- Interactive fixes with safe defaults (N)
 
 ---
 
