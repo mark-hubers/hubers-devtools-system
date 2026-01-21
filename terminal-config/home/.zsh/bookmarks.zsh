@@ -602,15 +602,14 @@ bmcode() {
 
 _bm_completion() {
   local -a bookmark_desc
-  
+
   if [[ -f "$BOOKMARKS_FILE" ]] && [[ -s "$BOOKMARKS_FILE" ]]; then
     while IFS=: read -r name bookmark_path rest; do
       bookmark_desc+=("${name}:${bookmark_path}")
     done < "$BOOKMARKS_FILE"
   fi
-  
+
   _describe 'bookmarks' bookmark_desc
-  _files -/
 }
 
 compdef _bm_completion bm
