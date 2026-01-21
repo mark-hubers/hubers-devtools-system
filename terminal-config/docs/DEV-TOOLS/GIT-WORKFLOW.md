@@ -279,6 +279,7 @@ gaudit --fix        # Interactive mode - offer to fix each issue
 4. **main/master confusion** - Both branches exist? Safe to delete one?
 5. **Branch sync** - Is your branch behind origin?
 6. **Stale branches** - Local branches tracking deleted remotes
+7. **Recent work branches** - Other branches you worked on that need push/PR
 
 **Smart features:**
 - Detects GitHub vs Bitbucket vs GitLab

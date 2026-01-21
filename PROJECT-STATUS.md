@@ -4,7 +4,7 @@
 **Date:** 2026-01-21
 **What we did:**
 - Added git workflow tools: `gsync`, `gnew`, `gbrecent`, `gbhistory`
-- Added `gaudit` - comprehensive git repo health check with interactive fixes
+- Added `gaudit` - comprehensive git repo health check (7 checks) with interactive fixes
 - Enhanced bookmark system with subcommands: `bm list`, `bm help`, `bm prune`, etc.
 - Fixed `bm <TAB>` to show only bookmarks (not mixed with directories)
 - Added `fav <section>` filtering with tab completion (e.g., `fav git`)
@@ -15,12 +15,14 @@
 - ✅ Git workflow tools working (`gsync`, `gnew`, `gaudit`)
 - ✅ Bookmark enhancements complete
 - ✅ Favorites section filtering working
-- ✅ All changes committed (3 commits ahead of origin)
+- ✅ All changes committed (5 commits ahead of origin)
 
 ## Recent Commits (unpushed)
 - `e199085` - Add git workflow tools and enhance bookmark system
 - `8172a6d` - Fix bm tab completion to show only bookmarks
 - `fb88669` - Add fav <section> filtering with tab completion
+- `cebeac5` - Update docs: PROJECT-STATUS and GIT-WORKFLOW
+- `d512cbf` - Add CHECK 7: Recent work branches to gaudit
 
 ## Next Up
 - [ ] Push commits to origin
