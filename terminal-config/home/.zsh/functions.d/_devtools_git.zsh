@@ -1169,6 +1169,84 @@ EOF
 alias gbaudit='gaudit'
 
 # ============================================================================
+# Quick Git Status - fast overview without full audit
+# ============================================================================
+# Usage: gquick
+
+gquick() {
+    if ! git rev-parse --git-dir &>/dev/null; then
+        echo "❌ Not in a git repository"
+        return 1
+    fi
+
+    local current_branch=$(git branch --show-current)
+    local repo_name=$(basename "$(git rev-parse --show-toplevel)")
+    local default_branch=$(_git_default_branch)
+
+    # Header
+    echo "📍 $repo_name @ ${current_branch:-DETACHED}"
+
+    # Quick status counts
+    local staged=$(git diff --cached --numstat 2>/dev/null | wc -l | tr -d ' ')
+    local unstaged=$(git diff --numstat 2>/dev/null | wc -l | tr -d ' ')
+    local untracked=$(git ls-files --others --exclude-standard 2>/dev/null | wc -l | tr -d ' ')
+
+    # Unpushed commits on current branch
+    local unpushed=0
+    if git rev-parse --verify "origin/$current_branch" &>/dev/null; then
+        unpushed=$(git rev-list --count "origin/$current_branch..$current_branch" 2>/dev/null || echo 0)
+    fi
+
+    # Status line
+    local status_parts=()
+    [[ $staged -gt 0 ]] && status_parts+=("${staged} staged")
+    [[ $unstaged -gt 0 ]] && status_parts+=("${unstaged} modified")
+    [[ $untracked -gt 0 ]] && status_parts+=("${untracked} untracked")
+    [[ $unpushed -gt 0 ]] && status_parts+=("⚠️  ${unpushed} unpushed")
+
+    if [[ ${#status_parts[@]} -eq 0 ]]; then
+        echo "   ✓ Clean"
+    else
+        echo "   ${(j: · :)status_parts}"
+    fi
+
+    # Recent branches (last 3, excluding current and default)
+    echo ""
+    echo "📋 Recent branches:"
+    local count=0
+    git reflog show --format='%gs' 2>/dev/null | \
+        grep -o 'checkout: moving from [^ ]* to [^ ]*' | \
+        sed 's/checkout: moving from [^ ]* to //' | \
+        grep -v "^HEAD$" | grep -v "^$default_branch$" | grep -v "^$current_branch$" | \
+        awk '!seen[$0]++' | head -3 | while read branch; do
+            # Check if branch still exists
+            if git show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null; then
+                # Check status
+                local b_status="✓"
+                local ahead=0
+
+                if git show-ref --verify --quiet "refs/remotes/origin/$branch" 2>/dev/null; then
+                    ahead=$(git rev-list --count "origin/$branch..$branch" 2>/dev/null || echo 0)
+                    [[ $ahead -gt 0 ]] && b_status="⚠️  $ahead unpushed"
+                else
+                    # Check if merged
+                    if git merge-base --is-ancestor "$branch" "origin/$default_branch" 2>/dev/null; then
+                        b_status="✅ merged"
+                    else
+                        ahead=$(git rev-list --count "origin/$default_branch..$branch" 2>/dev/null || echo 0)
+                        [[ $ahead -gt 0 ]] && b_status="⚠️  NOT PUSHED ($ahead)"
+                    fi
+                fi
+                printf "   %-30s %s\n" "$branch" "$b_status"
+            fi
+        done
+
+    # Tip
+    echo ""
+    echo "💡 gaudit for full check · gs for status"
+}
+
+# ============================================================================
 # Recent Branches - Show branches by recent activity
 # ============================================================================
 # Usage: gbrecent [count]
