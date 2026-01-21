@@ -749,7 +749,6 @@ EOF
     # Fetch latest (needed for accurate checks)
     echo "Fetching latest from origin..."
     git fetch --prune origin &>/dev/null
-    echo ""
 
     # Get default branch
     local default_branch=$(_git_default_branch)
@@ -795,11 +794,9 @@ EOF
         echo "     Commit:  git add . && git commit -m 'message'"
         echo "     Stash:   git stash -m 'description'"
         echo "     Review:  git status"
-        echo ""
     else
         echo "  ✓ OK: Working directory is clean"
     fi
-    echo ""
 
     # ─────────────────────────────────────────────────────────────
     # CHECK 3: Unpushed commits
@@ -822,18 +819,14 @@ EOF
             echo "  ⚠️  WARNING: $unpushed unpushed commit(s)"
             git log --oneline @{u}..HEAD 2>/dev/null | head -5 | sed 's/^/     /'
             [[ "$unpushed" -gt 5 ]] && echo "     ... and $((unpushed - 5)) more"
-            echo ""
             echo "  WHY:     Your work exists only locally - could be lost"
-            echo ""
             echo "  TO FIX:  git push"
-            echo ""
         else
             echo "  ✓ OK: All commits pushed"
         fi
     else
         echo "  ⏭️  SKIP: Not on a branch (detached HEAD)"
     fi
-    echo ""
 
     # ─────────────────────────────────────────────────────────────
     # CHECK 4: main/master confusion
@@ -1033,15 +1026,12 @@ EOF
             for b in "${stale_branches[@]}"; do
                 echo "           git branch -d $b"
             done
-            echo ""
             echo "  OR:      gclean  (deletes all merged branches)"
             echo "  OR:      gaudit --fix  (interactive cleanup)"
         fi
-        echo ""
     else
         echo "  ✓ OK: No stale branches"
     fi
-    echo ""
 
     # ─────────────────────────────────────────────────────────────
     # CHECK 7: Recent work branches - show last few with status
@@ -1139,7 +1129,6 @@ EOF
         else
             echo "  Recent branches:"
         fi
-        echo ""
         for item in "${branch_info[@]}"; do
             local b="${item%%|*}"
             local s="${item#*|}"
@@ -1159,7 +1148,6 @@ EOF
     else
         echo "📊 SUMMARY: $issues_found issue(s) found"
         [[ $issues_fixed -gt 0 ]] && echo "            $issues_fixed issue(s) fixed"
-        echo ""
         echo "💡 Run 'gaudit --fix' to interactively fix issues"
     fi
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -1229,8 +1217,12 @@ gquick() {
                     ahead=$(git rev-list --count "origin/$branch..$branch" 2>/dev/null || echo 0)
                     [[ $ahead -gt 0 ]] && b_status="⚠️  $ahead unpushed"
                 else
-                    # Check if merged
-                    if git merge-base --is-ancestor "$branch" "origin/$default_branch" 2>/dev/null; then
+                    # No remote - check if was pushed before (has tracking config)
+                    local was_tracked=$(git config --get "branch.$branch.remote" 2>/dev/null)
+                    if [[ -n "$was_tracked" ]]; then
+                        # Had tracking = was pushed, remote deleted = merged
+                        b_status="✅ merged"
+                    elif git merge-base --is-ancestor "$branch" "origin/$default_branch" 2>/dev/null; then
                         b_status="✅ merged"
                     else
                         ahead=$(git rev-list --count "origin/$default_branch..$branch" 2>/dev/null || echo 0)
