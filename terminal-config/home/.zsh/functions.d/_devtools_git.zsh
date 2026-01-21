@@ -1044,137 +1044,109 @@ EOF
     echo ""
 
     # ─────────────────────────────────────────────────────────────
-    # CHECK 7: Recent work branches - unpushed or need PR
+    # CHECK 7: Recent work branches - show last few with status
     # ─────────────────────────────────────────────────────────────
     echo "CHECK 7: Recent work branches"
 
     # Get branches you worked on recently (by reflog), excluding default branch
     local default_branch=$(_git_default_branch)
-    local -a work_branches=()
-    local -a needs_attention=()
+    local -a recent_branches=()
+    local -a branch_info=()
+    local found_issues=false
 
-    # Find branches from reflog (your recent checkouts)
+    # Find branches from reflog in order of recent checkout (most recent first)
     local reflog_branches=$(git reflog show --format='%gs' 2>/dev/null | \
         grep -o 'checkout: moving from [^ ]* to [^ ]*' | \
         sed 's/checkout: moving from [^ ]* to //' | \
-        grep -v '^HEAD' | \
-        sort -u | head -10)
+        grep -v "^HEAD$" | grep -v "^$default_branch$" | \
+        awk '!seen[$0]++' | head -5)
 
-    # Also add branches with recent commits by you
-    local my_email=$(git config user.email)
-    local my_branches=$(git for-each-ref --sort=-committerdate --format='%(refname:short) %(authoremail)' refs/heads/ 2>/dev/null | \
-        grep -i "$my_email" | \
-        awk '{print $1}' | head -10)
+    # Process each branch
+    while IFS= read -r branch; do
+        [[ -z "$branch" ]] && continue
 
-    # Combine and dedupe
-    work_branches=($(echo "$reflog_branches"$'\n'"$my_branches" | sort -u | grep -v "^$default_branch$" | head -10))
+        # Check if branch still exists locally
+        if ! git show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null; then
+            # Branch was deleted - note it
+            branch_info+=("$branch|🗑️  Deleted (was in your history)")
+            continue
+        fi
 
-    if [[ ${#work_branches[@]} -gt 0 ]]; then
-        local found_issues=false
+        # Check if merged into default branch
+        local is_merged=false
+        if git merge-base --is-ancestor "$branch" "origin/$default_branch" 2>/dev/null; then
+            is_merged=true
+        fi
 
-        for branch in "${work_branches[@]}"; do
-            [[ -z "$branch" ]] && continue
-            [[ "$branch" == "$default_branch" ]] && continue
+        # Check remote status
+        local remote_branch="origin/$branch"
+        local has_remote=false
+        if git show-ref --verify --quiet "refs/remotes/$remote_branch" 2>/dev/null; then
+            has_remote=true
+        fi
 
-            # Check if branch exists locally
-            if ! git show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null; then
-                continue
-            fi
+        # Check if was pushed before (has tracking config)
+        local tracking=$(git config --get "branch.$branch.remote" 2>/dev/null)
 
-            # Check if branch is already merged into default branch
-            local is_merged=false
-            if git merge-base --is-ancestor "$branch" "origin/$default_branch" 2>/dev/null; then
-                is_merged=true
-            fi
+        # Count commits
+        local ahead=0
+        if $has_remote; then
+            ahead=$(git rev-list --count "$remote_branch..$branch" 2>/dev/null || echo 0)
+        else
+            ahead=$(git rev-list --count "origin/$default_branch..$branch" 2>/dev/null || echo 0)
+        fi
 
-            # Skip branches that are already merged (these are stale, handled by CHECK 6)
-            if $is_merged; then
-                continue
-            fi
-
-            # Check if remote tracking branch exists
-            local remote_branch="origin/$branch"
-            local has_remote=false
-            if git show-ref --verify --quiet "refs/remotes/$remote_branch" 2>/dev/null; then
-                has_remote=true
-            fi
-
-            # Check if branch was configured to track a remote that no longer exists
-            local tracking=$(git config --get "branch.$branch.remote" 2>/dev/null)
-            local was_pushed=false
-            if [[ -n "$tracking" ]]; then
-                was_pushed=true  # Branch was pushed at some point
-            fi
-
-            # Count commits ahead/behind
-            local ahead=0 behind=0
-            if $has_remote; then
-                ahead=$(git rev-list --count "$remote_branch..$branch" 2>/dev/null || echo 0)
-                behind=$(git rev-list --count "$branch..$remote_branch" 2>/dev/null || echo 0)
+        # Determine status
+        local branch_status=""
+        if $is_merged; then
+            branch_status="✅ Merged (can delete)"
+        elif ! $has_remote && [[ -z "$tracking" ]] && [[ $ahead -gt 0 ]]; then
+            branch_status="⚠️  NOT PUSHED ($ahead commits) → git push -u origin $branch"
+            found_issues=true
+        elif ! $has_remote && [[ -n "$tracking" ]]; then
+            # Was pushed but remote deleted - likely merged
+            branch_status="✅ Merged & cleaned up"
+        elif $has_remote && [[ $ahead -gt 0 ]]; then
+            branch_status="⚠️  $ahead unpushed → git push"
+            found_issues=true
+        elif $has_remote && [[ $ahead -eq 0 ]]; then
+            # Pushed and synced - check for PR (GitHub only)
+            if [[ "$remote_type" == "GitHub" ]] && command -v gh &>/dev/null; then
+                local pr_state=$(gh pr view "$branch" --json state -q '.state' 2>/dev/null)
+                if [[ "$pr_state" == "OPEN" ]]; then
+                    branch_status="📋 PR open - awaiting review"
+                elif [[ "$pr_state" == "MERGED" ]]; then
+                    branch_status="✅ PR merged"
+                elif [[ -z "$pr_state" ]]; then
+                    branch_status="⚠️  Pushed, no PR → gh pr create"
+                    found_issues=true
+                fi
             else
-                # No remote - count commits not in default branch
-                ahead=$(git rev-list --count "origin/$default_branch..$branch" 2>/dev/null || echo 0)
-            fi
-
-            # Determine status and action needed
-            local branch_status="" action=""
-            if ! $has_remote && ! $was_pushed && [[ $ahead -gt 0 ]]; then
-                # Never pushed, has commits
-                branch_status="⚠️  NOT PUSHED ($ahead commits)"
-                action="git push -u origin $branch"
-                found_issues=true
-            elif $has_remote && [[ $ahead -gt 0 ]]; then
-                branch_status="⚠️  $ahead unpushed commit(s)"
-                action="git push"
-                found_issues=true
-            elif $has_remote && [[ $ahead -eq 0 ]] && [[ $behind -eq 0 ]]; then
-                # Check if there's a PR for this branch (GitHub only)
-                if [[ "$remote_type" == "GitHub" ]] && command -v gh &>/dev/null; then
-                    local pr_state=$(gh pr view "$branch" --json state -q '.state' 2>/dev/null)
-                    if [[ "$pr_state" == "OPEN" ]]; then
-                        branch_status="📋 PR open - awaiting review/merge"
-                    elif [[ -z "$pr_state" ]]; then
-                        branch_status="⚠️  Pushed but NO PR"
-                        action="gh pr create"
-                        found_issues=true
-                    fi
-                else
-                    # For Bitbucket, just note it's pushed
-                    branch_status="✓ Pushed (check for PR manually)"
-                fi
-            fi
-
-            # Only show branches that need attention or have status
-            if [[ -n "$branch_status" ]]; then
-                if ! $found_issues || [[ "$branch_status" == *"⚠️"* ]]; then
-                    needs_attention+=("$branch|$branch_status|$action")
-                fi
-            fi
-        done
-
-        if [[ ${#needs_attention[@]} -gt 0 ]]; then
-            ((issues_found++))
-            echo "  ⚠️  WARNING: Work branches need attention:"
-            echo ""
-            for item in "${needs_attention[@]}"; do
-                local b="${item%%|*}"
-                local rest="${item#*|}"
-                local s="${rest%%|*}"
-                local a="${rest#*|}"
-                echo "     $b"
-                echo "        $s"
-                [[ -n "$a" && "$a" != "$s" ]] && echo "        → $a"
-                echo ""
-            done
-
-            if $fix_mode; then
-                echo "  💡 Switch to branch and push/create PR as needed"
+                branch_status="✓ Pushed (check PR on Bitbucket)"
             fi
         else
-            echo "  ✓ OK: Recent work branches are synced"
+            branch_status="? Unknown state"
         fi
+
+        branch_info+=("$branch|$branch_status")
+    done <<< "$reflog_branches"
+
+    # Display results
+    if [[ ${#branch_info[@]} -gt 0 ]]; then
+        if $found_issues; then
+            ((issues_found++))
+            echo "  Recent branches (⚠️ = needs attention):"
+        else
+            echo "  Recent branches:"
+        fi
+        echo ""
+        for item in "${branch_info[@]}"; do
+            local b="${item%%|*}"
+            local s="${item#*|}"
+            printf "     %-35s %s\n" "$b" "$s"
+        done
     else
-        echo "  ✓ OK: No recent work branches found"
+        echo "  ✓ OK: No recent work branches in history"
     fi
     echo ""
 
