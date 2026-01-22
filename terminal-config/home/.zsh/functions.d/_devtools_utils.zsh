@@ -104,6 +104,58 @@ killport() {
 alias ports='lsof -i -P -n | grep LISTEN'
 
 # ============================================================================
+# Search & Find (ripgrep wrappers)
+# ============================================================================
+# Sensible defaults: skip .git/node_modules, smart-case, colors
+
+# search - Content search (grep replacement)
+# Usage: search "pattern" [path]
+search() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: search \"pattern\" [path]"
+    echo "  Search file contents using ripgrep"
+    return 1
+  fi
+  rg --smart-case --hidden --glob '!.git' --glob '!node_modules' --glob '!*.min.*' "$@"
+}
+
+# ff - Find files containing pattern (shows filenames only)
+# Usage: ff "pattern" [path]
+ff() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: ff \"pattern\" [path]"
+    echo "  Find files containing pattern (filenames only)"
+    return 1
+  fi
+  rg --smart-case --hidden --glob '!.git' --glob '!node_modules' --files-with-matches "$@"
+}
+
+# fname - Find files by name
+# Usage: fname "pattern" [path]
+fname() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: fname \"pattern\" [path]"
+    echo "  Find files by name (uses fd if available, falls back to find)"
+    return 1
+  fi
+  local pattern="$1"
+  local search_path="${2:-.}"
+  if command -v fd &> /dev/null; then
+    fd --hidden --exclude .git --exclude node_modules "$pattern" "$search_path"
+  else
+    find "$search_path" -name "*${pattern}*" \
+      -not -path '*/.git/*' \
+      -not -path '*/node_modules/*' 2>/dev/null
+  fi
+}
+
+# Aliases for common search patterns
+alias rgh='rg --hidden --glob "!.git"'                    # rg with hidden files
+alias rgf='rg --files-with-matches'                       # rg filenames only
+alias rgi='rg --ignore-case'                              # rg case insensitive
+alias todo='search "TODO|FIXME|XXX|HACK"'                 # Find TODOs in code
+
+# ============================================================================
 # File Utilities
 # ============================================================================
 # Create directory and cd into it

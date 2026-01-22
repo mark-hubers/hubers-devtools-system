@@ -43,13 +43,13 @@ ssh-tips           | SSH config examples           || ssh-setup       | Generate
 devsetup check     | Show installed/missing        || devsetup add <x>| Install tool
 devsetup search    | Find tools by name            || devsetup list   | List all tools
 #
-#= SEARCH (rg & fd)
-rg <pat>           | Grep (ripgrep)                || rg -i <pat>     | Case insensitive
-rg <pat> -t py     | Search Python files           || rg -l <pat>     | List files only
-fd <n>          | Find files by name            || fd -e md        | Find by extension
+#= SEARCH & FIND
+search "pat"       | Content search (smart)        || search "TODO" . | Search in path
+ff "pat"           | Files containing pattern      || fname "*.ts"    | Find by filename
+todo               | Find TODO/FIXME in code       || rg -t py "pat"  | Search Python only
 #
 #= FZF FINDERS
-ff                 | File finder + preview         || fif <pat>       | Grep in files
+fzf                | Fuzzy file finder             || fif <pat>       | Grep in files
 fh                 | Command history               || fkill           | Kill process
 Ctrl+T             | Insert file path              || Ctrl+R          | History search
 #
