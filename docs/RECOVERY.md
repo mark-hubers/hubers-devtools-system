@@ -229,10 +229,10 @@ asdf list <tool>
 asdf current <tool>
 
 # Fix it
-asdf global <tool> <correct-version>
+asdf set --home <tool> <correct-version>
 
 # Or for current directory only
-asdf local <tool> <correct-version>
+asdf set <tool> <correct-version>
 ```
 
 ### Problem: Favorites Not Showing

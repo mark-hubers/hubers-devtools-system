@@ -89,7 +89,7 @@ vim ~/hubers-devtools-system/config/tools.yaml
 
 # 2. Install new version
 asdf install <tool> <version>
-asdf global <tool> <version>
+asdf set --home <tool> <version>
 
 # 3. Commit and push
 cd ~/hubers-devtools-system

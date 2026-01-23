@@ -45,7 +45,7 @@ asdf plugin update --all        # Update all plugins
 
 | Old Command (pre-0.18) | New Command (0.18.0+) |
 |------------------------|----------------------|
-| `asdf global <tool> <ver>` | `asdf set -u <tool> <ver>` |
+| `asdf global <tool> <ver>` | `asdf set --home <tool> <ver>` |
 | `asdf local <tool> <ver>` | `asdf set <tool> <ver>` |
 | `asdf shell <tool> <ver>` | *(removed - use env var instead)* |
 

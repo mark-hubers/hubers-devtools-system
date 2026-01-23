@@ -456,10 +456,10 @@ version_manager:
 #
 # After installing via 'devsetup add <tool>', install a version with:
 #   asdf install <tool> latest
-#   asdf global <tool> latest
+#   asdf set --home <tool> latest
 # Or for a specific version:
 #   asdf install terraform 1.5.7
-#   asdf global terraform 1.5.7
+#   asdf set --home terraform 1.5.7
 # ============================================================================
 asdf_tools:
   - name: terraform

@@ -148,14 +148,14 @@ install_asdf_version() {
     
     if [[ "$version" == "latest" ]]; then
         asdf install "$plugin" latest 2>&1 | while read line; do echo "    $line"; done
-        asdf global "$plugin" latest
+        asdf set --home "$plugin" latest
     elif [[ "$version" == "lts" && "$plugin" == "nodejs" ]]; then
         # Special handling for Node.js LTS
         asdf install nodejs lts 2>&1 | while read line; do echo "    $line"; done
-        asdf global nodejs lts
+        asdf set --home nodejs lts
     else
         asdf install "$plugin" "$version" 2>&1 | while read line; do echo "    $line"; done
-        asdf global "$plugin" "$version"
+        asdf set --home "$plugin" "$version"
     fi
 }
 
@@ -677,8 +677,8 @@ cmd_versions() {
         
         echo -e "${CYAN}Tip: Change versions with:${NC}"
         echo "  asdf install <tool> <version>"
-        echo "  asdf global <tool> <version>    # Set global default"
-        echo "  asdf local <tool> <version>     # Set for current directory"
+        echo "  asdf set --home <tool> <version>    # Set global default"
+        echo "  asdf set <tool> <version>       # Set for current directory"
         echo ""
     else
         warning "asdf not installed - no version-managed tools"
@@ -716,7 +716,7 @@ cmd_asdf_update() {
     echo ""
     info "To upgrade a tool to latest:"
     echo "  asdf install <tool> latest"
-    echo "  asdf global <tool> latest"
+    echo "  asdf set --home <tool> latest"
 }
 
 cmd_tool_versions() {
@@ -845,8 +845,8 @@ cmd_help() {
     echo "  After installing asdf_tools, manage versions with:"
     echo "    asdf list all <tool>        # See available versions"
     echo "    asdf install <tool> 1.5.7   # Install specific version"
-    echo "    asdf global <tool> 1.5.7    # Set global default"
-    echo "    asdf local <tool> 1.5.7     # Pin for current directory"
+    echo "    asdf set --home <tool> 1.5.7    # Set global default"
+    echo "    asdf set <tool> 1.5.7       # Pin for current directory"
     echo ""
 }
 

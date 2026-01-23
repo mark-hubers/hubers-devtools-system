@@ -23,11 +23,11 @@
 ## asdf Quick Reference
 
 ```bash
-asdf current                    # Show current versions
-asdf list all <tool>            # Available versions
-asdf install <tool> <version>   # Install version
-asdf global <tool> <version>    # Set global default
-asdf local <tool> <version>     # Pin for directory
+asdf current                        # Show current versions
+asdf list all <tool>                # Available versions
+asdf install <tool> <version>       # Install version
+asdf set --home <tool> <version>    # Set global default
+asdf set <tool> <version>           # Pin for directory
 ```
 
 ## Adding a Tool
@@ -91,7 +91,7 @@ devsetup add k9s
 devsetup add helm
 
 # Pin terraform version for project
-asdf local terraform 1.5.7
+asdf set terraform 1.5.7
 
 # Generate .tool-versions
 devsetup tool-versions

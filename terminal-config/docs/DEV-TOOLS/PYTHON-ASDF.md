@@ -30,7 +30,7 @@ asdf install python 3.11.7      # For AWS Lambda
 asdf install python 3.10.13     # Legacy projects
 
 # 4. Set your default
-asdf global python 3.12.1
+asdf set --home python 3.12.1
 
 # 5. Verify
 python --version
@@ -50,7 +50,7 @@ This is the killer feature - automatic version switching per project.
 cd ~/repos/my-lambda-function
 
 # Set Python version for THIS project
-asdf local python 3.11.7
+asdf set python 3.11.7
 
 # This creates .tool-versions file
 cat .tool-versions
@@ -136,14 +136,13 @@ asdf current python
 
 ```bash
 # Set global default (used everywhere unless overridden)
-asdf global python 3.12.1
+asdf set --home python 3.12.1
 
 # Set for current project (creates .tool-versions)
-asdf local python 3.11.7
-
-# Set for current shell only (temporary)
-asdf shell python 3.10.13
+asdf set python 3.11.7
 ```
+
+> **Note:** `asdf shell` was removed in asdf 0.18.0. Use environment variables if needed.
 
 ### Useful Shortcuts
 
@@ -152,7 +151,7 @@ asdf shell python 3.10.13
 asdf install python latest
 
 # Set global to latest
-asdf global python latest
+asdf set --home python latest
 
 # Update plugin (get new version list)
 asdf plugin update python
@@ -181,7 +180,7 @@ AWS Lambda supports specific Python versions. Match them exactly!
 mkdir my-lambda && cd my-lambda
 
 # Pin to Lambda's Python version
-asdf local python 3.11.7
+asdf set python 3.11.7
 
 # Create requirements.txt
 echo "boto3" > requirements.txt
@@ -263,7 +262,7 @@ source ~/.zshrc
 
 ```bash
 # Set a global default
-asdf global python 3.12.1
+asdf set --home python 3.12.1
 
 # Or check if plugin is installed
 asdf plugin list
@@ -317,7 +316,7 @@ asdf plugin add ruby
 
 # Install and use same way as Python
 asdf install nodejs 18.19.0
-asdf global nodejs 18.19.0
+asdf set --home nodejs 18.19.0
 ```
 
 ### Multi-Tool .tool-versions
@@ -340,9 +339,8 @@ asdf install python 3.11.7      # Install version
 asdf install python latest      # Install latest
 
 # SET VERSION
-asdf global python 3.12.1       # Set default
-asdf local python 3.11.7        # Set for project (.tool-versions)
-asdf shell python 3.10.13       # Set for this shell only
+asdf set --home python 3.12.1   # Set global default
+asdf set python 3.11.7          # Set for project (.tool-versions)
 
 # CHECK
 asdf current                    # Show current versions

@@ -67,7 +67,7 @@ vim ~/hubers-devtools/config/tools.yaml
 
 # 2. Install new version
 asdf install terraform 1.6.0
-asdf global terraform 1.6.0
+asdf set --home terraform 1.6.0
 
 # 3. Commit
 git add config/tools.yaml
