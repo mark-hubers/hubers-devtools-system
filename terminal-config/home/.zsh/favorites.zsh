@@ -194,6 +194,7 @@ fav() {
         _fav_section "$1"
     else
         _fav_content
+        _show_extension_favorites
         _fav_footer
     fi
 }
