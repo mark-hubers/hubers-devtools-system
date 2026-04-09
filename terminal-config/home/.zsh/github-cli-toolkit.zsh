@@ -1210,6 +1210,27 @@ ACCOUNT MANAGEMENT:
   ghaccounts        - List accounts + owner mappings
   ghstatus          - Check authentication status
 
+VARIABLES (Org/Repo):
+  ghvar list [target]               - List variables
+  ghvar get <name> [target]         - Show variable details
+  ghvar set <name> <val> [target]   - Create or update variable
+  ghvar delete <name> [target]      - Delete variable
+
+SECRETS (Org/Repo):
+  ghsecret list [target]            - List secrets (names only)
+  ghsecret set <name> [target]      - Create or update secret (prompts for value)
+  ghsecret delete <name> [target]   - Delete secret (with confirmation)
+
+TEAMS:
+  ghteam list <org>                 - List teams with member/repo counts
+  ghteam show <org> <team>          - Team details + members + repos
+  ghteam add-member <org> <t> <u>   - Add user to team
+  ghteam remove-member <org> <t> <u>- Remove user from team
+  ghteam set-repo <org> <t> <r> <p> - Set team repo permission
+  ghteam fix <org> <t> [--parent..] - Fix team parent/description
+
+  (target: org-name = org scope, owner/repo = repo, omit = current repo)
+
 ORGANIZATION (Work):
   ghaudit           - Run organization audit script
   ghorg <name>      - Browse org repositories
@@ -1317,6 +1338,955 @@ alias ghb='ghbranch'         # Quick branch
 alias ghr='ghrepo'           # Quick repo view
 alias ghw='ghwatch'          # Quick watch
 alias ghg='ghgists'          # Quick gists
+alias ghv='ghvar'            # Quick variables
+
+# ====================================
+# ORG/REPO VARIABLE MANAGEMENT
+# ====================================
+# Wraps GitHub Actions Variables API for org and repo scope.
+# Org operations use admin token from ~/.gh-admin-token.
+
+# Run gh with admin token (for org-level operations)
+_gh_admin() {
+   local token_file="$HOME/.gh-admin-token"
+   if [[ ! -f "$token_file" ]]; then
+      echo "✗ Admin token not found: $token_file"
+      echo ""
+      echo "Create it:"
+      echo "  1. Generate a classic PAT with admin:org scope"
+      echo "  2. echo 'ghp_YourTokenHere' > ~/.gh-admin-token"
+      echo "  3. chmod 600 ~/.gh-admin-token"
+      return 1
+   fi
+   local perms
+   perms=$(stat -f '%Lp' "$token_file" 2>/dev/null)
+   if [[ "$perms" != "600" ]]; then
+      echo "⚠ Fixing permissions on $token_file ($perms → 600)"
+      chmod 600 "$token_file"
+   fi
+   GH_TOKEN=$(<"$token_file") gh "$@"
+}
+
+# Parse target into scope + API path
+# Sets: _GH_SCOPE (org|repo), _GH_API_PATH, _GH_TARGET_LABEL
+_gh_parse_target() {
+   local target="$1"
+
+   ## Strip whitespace
+   target="${target## }"
+   target="${target%% }"
+
+   if [[ -z "$target" ]]; then
+      ## Auto-detect from git remote
+      local remote_url
+      remote_url=$(git remote get-url origin 2>/dev/null)
+      if [[ -z "$remote_url" ]]; then
+         echo "✗ No target specified and not in a git repo with a remote"
+         echo "Usage: ghvar <cmd> [name] [value] [org | owner/repo]"
+         return 1
+      fi
+      local owner_repo
+      owner_repo=$(echo "$remote_url" | sed -E 's#^(git@[^:]+:|https://[^/]+/)##; s/\.git$//')
+      if [[ -z "$owner_repo" || "$owner_repo" != */* ]]; then
+         echo "✗ Could not parse owner/repo from remote: $remote_url"
+         return 1
+      fi
+      _GH_SCOPE="repo"
+      _GH_API_PATH="/repos/$owner_repo/actions/variables"
+      _GH_TARGET_LABEL="$owner_repo"
+      return 0
+   fi
+
+   ## Validate: reject too many slashes
+   local slash_count="${target//[^\/]/}"
+   if [[ ${#slash_count} -gt 1 ]]; then
+      echo "✗ Invalid target: '$target' (expected 'org' or 'owner/repo')"
+      return 1
+   fi
+
+   if [[ "$target" == */* ]]; then
+      ## Repo scope
+      _GH_SCOPE="repo"
+      _GH_API_PATH="/repos/$target/actions/variables"
+      _GH_TARGET_LABEL="$target"
+   else
+      ## Org scope
+      _GH_SCOPE="org"
+      _GH_API_PATH="/orgs/$target/actions/variables"
+      _GH_TARGET_LABEL="$target"
+   fi
+   return 0
+}
+
+# Run gh or _gh_admin based on current scope
+_gh_scoped() {
+   if [[ "$_GH_SCOPE" == "org" ]]; then
+      _gh_admin "$@"
+   else
+      gh "$@"
+   fi
+}
+
+# Main ghvar command
+ghvar() {
+   _gh_check || return 1
+
+   local subcmd="$1"
+   shift 2>/dev/null
+
+   case "$subcmd" in
+      list)
+         _ghvar_list "$@"
+         ;;
+      get)
+         _ghvar_get "$@"
+         ;;
+      set)
+         _ghvar_set "$@"
+         ;;
+      delete)
+         _ghvar_delete "$@"
+         ;;
+      *)
+         echo "📋 ghvar — GitHub Actions Variable Management"
+         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+         echo ""
+         echo "Usage: ghvar <command> [arguments]"
+         echo ""
+         echo "Commands:"
+         echo "  list   [target]                          List variables"
+         echo "  get    <name> [target]                   Show variable details"
+         echo "  set    <name> <value> [target] [flags]   Create or update variable"
+         echo "  delete <name> [target]                   Delete variable"
+         echo ""
+         echo "Target (positional — auto-detected if omitted):"
+         echo "  alvaria-bu          Org scope (uses admin token)"
+         echo "  alvaria-bu/my-repo  Repo scope"
+         echo "  (omitted)           Current repo from git remote"
+         echo ""
+         echo "Flags (set only):"
+         echo "  --visibility all|private|selected   Org variable visibility"
+         echo "  --repos repo1,repo2                 Repos for selected visibility"
+         echo ""
+         echo "Options:"
+         echo "  --json              Machine-readable output"
+         echo ""
+         echo "Examples:"
+         echo "  ghvar list alvaria-bu"
+         echo "  ghvar get AWS_REGION alvaria-bu"
+         echo "  ghvar set DEPLOY_ENV staging alvaria-bu --visibility all"
+         echo "  ghvar set MY_VAR value123"
+         echo "  ghvar delete OLD_VAR alvaria-bu"
+         echo "  ghvar list --json | jq '.[] | .name'"
+         return 1
+         ;;
+   esac
+}
+
+# --- ghvar list ---
+_ghvar_list() {
+   local target="" json_mode=0
+   ## Parse args
+   for arg in "$@"; do
+      case "$arg" in
+         --json) json_mode=1 ;;
+         *)      target="$arg" ;;
+      esac
+   done
+
+   _gh_parse_target "$target" || return 1
+
+   local result
+   result=$(_gh_scoped api "$_GH_API_PATH" --paginate 2>&1)
+   local rc=$?
+
+   if [[ $rc -ne 0 ]]; then
+      _gh_handle_error "$result" "list variables for $_GH_TARGET_LABEL"
+      return 1
+   fi
+
+   if [[ $json_mode -eq 1 ]]; then
+      echo "$result" | jq '.variables // []'
+      return 0
+   fi
+
+   local scope_label
+   [[ "$_GH_SCOPE" == "org" ]] && scope_label="Org" || scope_label="Repo"
+
+   echo "📋 $scope_label Variables: $_GH_TARGET_LABEL"
+   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+   local count
+   count=$(echo "$result" | jq '.variables | length')
+
+   if [[ "$count" == "0" ]]; then
+      echo "  (none)"
+   elif [[ "$_GH_SCOPE" == "org" ]]; then
+      printf "  %-28s %-30s %s\n" "NAME" "VALUE" "VISIBILITY"
+      echo "  ─────────────────────────── ────────────────────────────── ──────────"
+      echo "$result" | jq -r '.variables[] | "  \(.name)\t\(.value)\t\(.visibility)"' | \
+         while IFS=$'\t' read -r name val vis; do
+            printf "  %-28s %-30s %s\n" "$name" "$val" "$vis"
+         done
+   else
+      printf "  %-28s %s\n" "NAME" "VALUE"
+      echo "  ─────────────────────────── ──────────────────────────────"
+      echo "$result" | jq -r '.variables[] | "  \(.name)\t\(.value)"' | \
+         while IFS=$'\t' read -r name val; do
+            printf "  %-28s %s\n" "$name" "$val"
+         done
+   fi
+
+   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+   echo "  $count variable(s)"
+}
+
+# --- ghvar get ---
+_ghvar_get() {
+   local name="" target="" json_mode=0
+   for arg in "$@"; do
+      case "$arg" in
+         --json) json_mode=1 ;;
+         *)
+            if [[ -z "$name" ]]; then
+               name="$arg"
+            else
+               target="$arg"
+            fi
+            ;;
+      esac
+   done
+
+   if [[ -z "$name" ]]; then
+      echo "Usage: ghvar get <name> [target] [--json]"
+      return 1
+   fi
+
+   _gh_parse_target "$target" || return 1
+
+   local result
+   result=$(_gh_scoped api "$_GH_API_PATH/$name" 2>&1)
+   local rc=$?
+
+   if [[ $rc -ne 0 ]]; then
+      _gh_handle_error "$result" "get variable '$name' from $_GH_TARGET_LABEL"
+      return 1
+   fi
+
+   if [[ $json_mode -eq 1 ]]; then
+      echo "$result"
+      return 0
+   fi
+
+   echo "📋 Variable: $name"
+   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+   echo "  Name:       $(echo "$result" | jq -r '.name')"
+   echo "  Value:      $(echo "$result" | jq -r '.value')"
+   if [[ "$_GH_SCOPE" == "org" ]]; then
+      echo "  Visibility: $(echo "$result" | jq -r '.visibility')"
+   fi
+   echo "  Created:    $(echo "$result" | jq -r '.created_at')"
+   echo "  Updated:    $(echo "$result" | jq -r '.updated_at')"
+   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+}
+
+# --- ghvar set ---
+_ghvar_set() {
+   local name="" value="" target="" visibility="" repos="" json_mode=0
+   while [[ $# -gt 0 ]]; do
+      case "$1" in
+         --json) json_mode=1; shift ;;
+         --visibility) visibility="$2"; shift 2 ;;
+         --repos) repos="$2"; shift 2 ;;
+         *)
+            if [[ -z "$name" ]]; then
+               name="$1"
+            elif [[ -z "$value" ]]; then
+               value="$1"
+            else
+               target="$1"
+            fi
+            shift
+            ;;
+      esac
+   done
+
+   if [[ -z "$name" || -z "$value" ]]; then
+      echo "Usage: ghvar set <name> <value> [target] [--visibility all|private|selected] [--repos r1,r2]"
+      return 1
+   fi
+
+   _gh_parse_target "$target" || return 1
+
+   ## Build JSON body
+   local body="{\"name\":\"$name\",\"value\":\"$value\"}"
+
+   if [[ "$_GH_SCOPE" == "org" ]]; then
+      if [[ -n "$visibility" ]]; then
+         body="{\"name\":\"$name\",\"value\":\"$value\",\"visibility\":\"$visibility\"}"
+         if [[ "$visibility" == "selected" && -n "$repos" ]]; then
+            ## Resolve repo names to IDs
+            local repo_ids="[]"
+            local org="$_GH_TARGET_LABEL"
+            local ids=()
+            for repo_name in ${(s:,:)repos}; do
+               local rid
+               rid=$(_gh_admin api "/repos/$org/$repo_name" --jq '.id' 2>/dev/null)
+               if [[ -n "$rid" ]]; then
+                  ids+=("$rid")
+               else
+                  echo "⚠ Could not resolve repo: $org/$repo_name"
+               fi
+            done
+            if [[ ${#ids[@]} -gt 0 ]]; then
+               repo_ids="[$(IFS=,; echo "${ids[*]}")]"
+            fi
+            body="{\"name\":\"$name\",\"value\":\"$value\",\"visibility\":\"$visibility\",\"selected_repository_ids\":$repo_ids}"
+         fi
+      fi
+   fi
+
+   ## Try update (PATCH) first
+   local result
+   result=$(_gh_scoped api "$_GH_API_PATH/$name" --method PATCH --input - <<< "$body" 2>&1)
+   local rc=$?
+
+   if [[ $rc -ne 0 ]]; then
+      ## Check if 404 (variable doesn't exist yet)
+      if echo "$result" | grep -qi '404\|not found'; then
+         ## Create (POST) — need visibility for org scope
+         if [[ "$_GH_SCOPE" == "org" && -z "$visibility" ]]; then
+            echo "✗ Org variable requires --visibility (all, private, or selected)"
+            return 1
+         fi
+         result=$(_gh_scoped api "$_GH_API_PATH" --method POST --input - <<< "$body" 2>&1)
+         rc=$?
+         if [[ $rc -ne 0 ]]; then
+            _gh_handle_error "$result" "create variable '$name' on $_GH_TARGET_LABEL"
+            return 1
+         fi
+         if [[ $json_mode -eq 1 ]]; then
+            echo '{"action":"created","name":"'"$name"'","target":"'"$_GH_TARGET_LABEL"'"}'
+         else
+            echo "✓ Created $name on $_GH_TARGET_LABEL"
+         fi
+      else
+         _gh_handle_error "$result" "update variable '$name' on $_GH_TARGET_LABEL"
+         return 1
+      fi
+   else
+      if [[ $json_mode -eq 1 ]]; then
+         echo '{"action":"updated","name":"'"$name"'","target":"'"$_GH_TARGET_LABEL"'"}'
+      else
+         echo "✓ Updated $name on $_GH_TARGET_LABEL"
+      fi
+   fi
+}
+
+# --- ghvar delete ---
+_ghvar_delete() {
+   local name="" target="" json_mode=0
+   for arg in "$@"; do
+      case "$arg" in
+         --json) json_mode=1 ;;
+         *)
+            if [[ -z "$name" ]]; then
+               name="$arg"
+            else
+               target="$arg"
+            fi
+            ;;
+      esac
+   done
+
+   if [[ -z "$name" ]]; then
+      echo "Usage: ghvar delete <name> [target] [--json]"
+      return 1
+   fi
+
+   _gh_parse_target "$target" || return 1
+
+   local result
+   result=$(_gh_scoped api "$_GH_API_PATH/$name" --method DELETE 2>&1)
+   local rc=$?
+
+   if [[ $rc -ne 0 ]]; then
+      _gh_handle_error "$result" "delete variable '$name' from $_GH_TARGET_LABEL"
+      return 1
+   fi
+
+   if [[ $json_mode -eq 1 ]]; then
+      echo '{"action":"deleted","name":"'"$name"'","target":"'"$_GH_TARGET_LABEL"'"}'
+   else
+      echo "✓ Deleted $name from $_GH_TARGET_LABEL"
+   fi
+}
+
+# --- Shared error handler (used by ghvar, ghsecret, ghteam) ---
+_gh_handle_error() {
+   local result="$1" context="$2"
+   if echo "$result" | grep -qi '401\|bad credentials'; then
+      echo "✗ Authentication failed — token expired or invalid"
+   elif echo "$result" | grep -qi 'rate limit'; then
+      echo "✗ Rate limited — wait a few minutes and retry"
+   elif echo "$result" | grep -qi '403\|forbidden'; then
+      echo "✗ Permission denied — admin token may lack required scope"
+      echo "  Needed: classic PAT with admin:org"
+   elif echo "$result" | grep -qi '404\|not found'; then
+      echo "✗ Not found — check target name and your access"
+   elif echo "$result" | grep -qi '422\|validation failed'; then
+      echo "✗ Validation error"
+      local msg
+      msg=$(echo "$result" | jq -r '.message // empty' 2>/dev/null)
+      [[ -n "$msg" ]] && echo "  API: $msg"
+      local errors
+      errors=$(echo "$result" | jq -r '.errors[]?.message // empty' 2>/dev/null)
+      [[ -n "$errors" ]] && echo "  Detail: $errors"
+   else
+      echo "✗ Failed to $context"
+      local msg
+      msg=$(echo "$result" | jq -r '.message // empty' 2>/dev/null)
+      [[ -n "$msg" ]] && echo "  API: $msg"
+   fi
+}
+
+# ====================================
+# ORG/REPO SECRET MANAGEMENT
+# ====================================
+# Wraps GitHub Actions Secrets API. Values are NEVER returned by the API.
+# Uses `gh secret set` for creates (handles libsodium encryption).
+
+ghsecret() {
+   _gh_check || return 1
+
+   local subcmd="$1"
+   shift 2>/dev/null
+
+   case "$subcmd" in
+      list)   _ghsecret_list "$@" ;;
+      set)    _ghsecret_set "$@" ;;
+      delete) _ghsecret_delete "$@" ;;
+      *)
+         echo "🔒 ghsecret — GitHub Actions Secret Management"
+         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+         echo ""
+         echo "Usage: ghsecret <command> [arguments]"
+         echo ""
+         echo "Commands:"
+         echo "  list   [target]                          List secrets (names only)"
+         echo "  set    <name> [target] [--visibility ..]  Create or update secret"
+         echo "  delete <name> [target]                   Delete secret"
+         echo ""
+         echo "Target: org-name = org scope, owner/repo = repo, omit = current repo"
+         echo ""
+         echo "Examples:"
+         echo "  ghsecret list alvaria-bu"
+         echo "  ghsecret set DEPLOY_KEY alvaria-bu --visibility all"
+         echo "  ghsecret delete OLD_SECRET alvaria-bu"
+         echo ""
+         echo "Note: GitHub never returns secret values — only names are visible."
+         return 1
+         ;;
+   esac
+}
+
+# --- ghsecret list ---
+_ghsecret_list() {
+   local target="" json_mode=0
+   for arg in "$@"; do
+      case "$arg" in
+         --json) json_mode=1 ;;
+         *)      target="$arg" ;;
+      esac
+   done
+
+   _gh_parse_target "$target" || return 1
+
+   local result
+   result=$(_gh_scoped api "${_GH_API_PATH%/variables}/secrets" --paginate 2>&1)
+   local rc=$?
+
+   if [[ $rc -ne 0 ]]; then
+      _gh_handle_error "$result" "list secrets for $_GH_TARGET_LABEL"
+      return 1
+   fi
+
+   if [[ $json_mode -eq 1 ]]; then
+      echo "$result" | jq '.secrets // []'
+      return 0
+   fi
+
+   local scope_label
+   [[ "$_GH_SCOPE" == "org" ]] && scope_label="Org" || scope_label="Repo"
+
+   echo "🔒 $scope_label Secrets: $_GH_TARGET_LABEL"
+   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+   local count
+   count=$(echo "$result" | jq '.secrets | length')
+
+   if [[ "$count" == "0" ]]; then
+      echo "  (none)"
+   elif [[ "$_GH_SCOPE" == "org" ]]; then
+      printf "  %-28s %-14s %s\n" "NAME" "VISIBILITY" "UPDATED"
+      echo "  ─────────────────────────── ────────────── ────────────────────"
+      echo "$result" | jq -r '.secrets[] | "\(.name)\t\(.visibility)\t\(.updated_at)"' | \
+         while IFS=$'\t' read -r name vis updated; do
+            printf "  %-28s %-14s %s\n" "$name" "$vis" "${updated%T*}"
+         done
+   else
+      printf "  %-28s %s\n" "NAME" "UPDATED"
+      echo "  ─────────────────────────── ────────────────────"
+      echo "$result" | jq -r '.secrets[] | "\(.name)\t\(.updated_at)"' | \
+         while IFS=$'\t' read -r name updated; do
+            printf "  %-28s %s\n" "$name" "${updated%T*}"
+         done
+   fi
+
+   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+   echo "  $count secret(s)  (values never shown)"
+}
+
+# --- ghsecret set ---
+_ghsecret_set() {
+   local name="" target="" visibility="" repos=""
+   while [[ $# -gt 0 ]]; do
+      case "$1" in
+         --visibility) visibility="$2"; shift 2 ;;
+         --repos) repos="$2"; shift 2 ;;
+         *)
+            if [[ -z "$name" ]]; then
+               name="$1"
+            else
+               target="$1"
+            fi
+            shift
+            ;;
+      esac
+   done
+
+   if [[ -z "$name" ]]; then
+      echo "Usage: ghsecret set <name> [target] [--visibility all|private|selected]"
+      return 1
+   fi
+
+   _gh_parse_target "$target" || return 1
+
+   ## Read secret value silently
+   local secret_value
+   echo -n "Enter value for secret '$name': "
+   read -s secret_value
+   echo ""
+
+   if [[ -z "$secret_value" ]]; then
+      echo "✗ Empty value — aborting"
+      return 1
+   fi
+
+   ## Build gh secret set command args
+   local -a cmd_args=("secret" "set" "$name")
+   if [[ "$_GH_SCOPE" == "org" ]]; then
+      cmd_args+=("--org" "$_GH_TARGET_LABEL")
+      if [[ -n "$visibility" ]]; then
+         cmd_args+=("--visibility" "$visibility")
+      else
+         echo "✗ Org secret requires --visibility (all, private, or selected)"
+         return 1
+      fi
+   elif [[ "$_GH_SCOPE" == "repo" ]]; then
+      cmd_args+=("--repo" "$_GH_TARGET_LABEL")
+   fi
+
+   ## Pipe value to gh secret set (handles encryption)
+   local result
+   result=$(echo "$secret_value" | _gh_scoped "${cmd_args[@]}" 2>&1)
+   local rc=$?
+
+   if [[ $rc -ne 0 ]]; then
+      _gh_handle_error "$result" "set secret '$name' on $_GH_TARGET_LABEL"
+      return 1
+   fi
+
+   echo "✓ Set secret $name on $_GH_TARGET_LABEL"
+}
+
+# --- ghsecret delete ---
+_ghsecret_delete() {
+   local name="" target=""
+   for arg in "$@"; do
+      if [[ -z "$name" ]]; then
+         name="$arg"
+      else
+         target="$arg"
+      fi
+   done
+
+   if [[ -z "$name" ]]; then
+      echo "Usage: ghsecret delete <name> [target]"
+      return 1
+   fi
+
+   _gh_parse_target "$target" || return 1
+
+   ## Confirm
+   echo -n "Delete secret '$name' from $_GH_TARGET_LABEL? (y/n): "
+   read -k 1 confirm
+   echo ""
+   if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+      echo "  Cancelled"
+      return 0
+   fi
+
+   local result
+   result=$(_gh_scoped api "${_GH_API_PATH%/variables}/secrets/$name" --method DELETE 2>&1)
+   local rc=$?
+
+   if [[ $rc -ne 0 ]]; then
+      _gh_handle_error "$result" "delete secret '$name' from $_GH_TARGET_LABEL"
+      return 1
+   fi
+
+   echo "✓ Deleted secret $name from $_GH_TARGET_LABEL"
+}
+
+# ====================================
+# TEAM MANAGEMENT
+# ====================================
+# Wraps GitHub Teams API for org-level team operations.
+
+ghteam() {
+   _gh_check || return 1
+
+   local subcmd="$1"
+   shift 2>/dev/null
+
+   case "$subcmd" in
+      list)          _ghteam_list "$@" ;;
+      show)          _ghteam_show "$@" ;;
+      add-member)    _ghteam_add_member "$@" ;;
+      remove-member) _ghteam_remove_member "$@" ;;
+      set-repo)      _ghteam_set_repo "$@" ;;
+      fix)           _ghteam_fix "$@" ;;
+      *)
+         echo "👥 ghteam — GitHub Team Management"
+         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+         echo ""
+         echo "Usage: ghteam <command> <org> [arguments]"
+         echo ""
+         echo "Commands:"
+         echo "  list          <org>                            List teams"
+         echo "  show          <org> <team>                     Team details + members + repos"
+         echo "  add-member    <org> <team> <user> [--role ..]  Add/update member"
+         echo "  remove-member <org> <team> <user>              Remove member"
+         echo "  set-repo      <org> <team> <repo> <permission> Set repo access"
+         echo "  fix           <org> <team> [--parent ..] [--description ..]"
+         echo ""
+         echo "Permissions: pull, triage, push, maintain, admin"
+         echo ""
+         echo "Examples:"
+         echo "  ghteam list alvaria-bu"
+         echo "  ghteam show alvaria-bu platform"
+         echo "  ghteam add-member alvaria-bu scrm mark-hubers"
+         echo "  ghteam set-repo alvaria-bu platform my-repo push"
+         echo "  ghteam fix alvaria-bu scrm --parent users --description 'SCRM team'"
+         return 1
+         ;;
+   esac
+}
+
+# --- ghteam list ---
+_ghteam_list() {
+   local org="" json_mode=0
+   for arg in "$@"; do
+      case "$arg" in
+         --json) json_mode=1 ;;
+         *)      org="$arg" ;;
+      esac
+   done
+
+   if [[ -z "$org" ]]; then
+      echo "Usage: ghteam list <org> [--json]"
+      return 1
+   fi
+
+   local result
+   result=$(_gh_admin api "/orgs/$org/teams" --paginate 2>&1)
+   local rc=$?
+
+   if [[ $rc -ne 0 ]]; then
+      _gh_handle_error "$result" "list teams for $org"
+      return 1
+   fi
+
+   if [[ $json_mode -eq 1 ]]; then
+      echo "$result"
+      return 0
+   fi
+
+   echo "👥 Teams: $org"
+   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+   printf "  %-20s %-10s %-16s %-6s %-6s %s\n" "SLUG" "PRIVACY" "PARENT" "MEMB" "REPOS" "DESCRIPTION"
+   echo "  ──────────────────── ────────── ──────────────── ────── ────── ─────────────────────"
+
+   echo "$result" | jq -r '.[] | "\(.slug)\t\(.privacy)\t\(.parent.slug // "-")\t\(.members_count // "-")\t\(.repos_count // "-")\t\(.description // "")"' | \
+      while IFS=$'\t' read -r slug privacy parent memb repos desc; do
+         printf "  %-20s %-10s %-16s %-6s %-6s %s\n" "$slug" "$privacy" "$parent" "$memb" "$repos" "${desc:0:30}"
+      done
+
+   local count
+   count=$(echo "$result" | jq 'length')
+   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+   echo "  $count team(s)"
+}
+
+# --- ghteam show ---
+_ghteam_show() {
+   local org="" team="" json_mode=0 show_members=1 show_repos=1
+   while [[ $# -gt 0 ]]; do
+      case "$1" in
+         --json)       json_mode=1; shift ;;
+         --no-members) show_members=0; shift ;;
+         --no-repos)   show_repos=0; shift ;;
+         *)
+            if [[ -z "$org" ]]; then
+               org="$1"
+            else
+               team="$1"
+            fi
+            shift
+            ;;
+      esac
+   done
+
+   if [[ -z "$org" || -z "$team" ]]; then
+      echo "Usage: ghteam show <org> <team> [--json] [--no-members] [--no-repos]"
+      return 1
+   fi
+
+   ## Team details
+   local team_result
+   team_result=$(_gh_admin api "/orgs/$org/teams/$team" 2>&1)
+   if [[ $? -ne 0 ]]; then
+      _gh_handle_error "$team_result" "get team '$team' from $org"
+      return 1
+   fi
+
+   if [[ $json_mode -eq 1 ]]; then
+      local output="$team_result"
+      if [[ $show_members -eq 1 ]]; then
+         local members
+         members=$(_gh_admin api "/orgs/$org/teams/$team/members" --paginate 2>&1)
+         output=$(echo "$output" | jq --argjson m "$(echo "$members" | jq '[.[] | {login, role: "member"}]')" '. + {members: $m}')
+      fi
+      if [[ $show_repos -eq 1 ]]; then
+         local repos
+         repos=$(_gh_admin api "/orgs/$org/teams/$team/repos" --paginate 2>&1)
+         output=$(echo "$output" | jq --argjson r "$(echo "$repos" | jq '[.[] | {name, permission: .role_name}]')" '. + {repos: $r}')
+      fi
+      echo "$output"
+      return 0
+   fi
+
+   echo "👥 Team: $(echo "$team_result" | jq -r '.name') ($org/$team)"
+   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+   echo "  Privacy:     $(echo "$team_result" | jq -r '.privacy')"
+   echo "  Parent:      $(echo "$team_result" | jq -r '.parent.slug // "(none)"')"
+   echo "  Description: $(echo "$team_result" | jq -r '.description // "(none)"')"
+   echo "  Members:     $(echo "$team_result" | jq -r '.members_count // "?"')"
+   echo "  Repos:       $(echo "$team_result" | jq -r '.repos_count // "?"')"
+
+   if [[ $show_members -eq 1 ]]; then
+      echo ""
+      echo "  MEMBERS:"
+      local members
+      members=$(_gh_admin api "/orgs/$org/teams/$team/members" --paginate 2>&1)
+      if [[ $? -eq 0 ]]; then
+         local mem_count
+         mem_count=$(echo "$members" | jq 'length')
+         if [[ "$mem_count" == "0" ]]; then
+            echo "    (none)"
+         else
+            echo "$members" | jq -r '.[] | "    \(.login)"'
+         fi
+      fi
+   fi
+
+   if [[ $show_repos -eq 1 ]]; then
+      echo ""
+      echo "  REPOS:"
+      local repos
+      repos=$(_gh_admin api "/orgs/$org/teams/$team/repos" --paginate 2>&1)
+      if [[ $? -eq 0 ]]; then
+         local repo_count
+         repo_count=$(echo "$repos" | jq 'length')
+         if [[ "$repo_count" == "0" ]]; then
+            echo "    (none)"
+         else
+            printf "    %-35s %s\n" "REPO" "PERMISSION"
+            echo "    ─────────────────────────────────── ──────────"
+            echo "$repos" | jq -r '.[] | "    \(.name)\t\(.role_name // "read")"' | \
+               while IFS=$'\t' read -r rname rperm; do
+                  printf "    %-35s %s\n" "$rname" "$rperm"
+               done
+         fi
+      fi
+   fi
+
+   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+}
+
+# --- ghteam add-member ---
+_ghteam_add_member() {
+   local org="" team="" user="" role="member"
+   while [[ $# -gt 0 ]]; do
+      case "$1" in
+         --role) role="$2"; shift 2 ;;
+         *)
+            if [[ -z "$org" ]]; then
+               org="$1"
+            elif [[ -z "$team" ]]; then
+               team="$1"
+            else
+               user="$1"
+            fi
+            shift
+            ;;
+      esac
+   done
+
+   if [[ -z "$org" || -z "$team" || -z "$user" ]]; then
+      echo "Usage: ghteam add-member <org> <team> <user> [--role member|maintainer]"
+      return 1
+   fi
+
+   local result
+   result=$(_gh_admin api "/orgs/$org/teams/$team/memberships/$user" \
+      --method PUT --field "role=$role" 2>&1)
+   local rc=$?
+
+   if [[ $rc -ne 0 ]]; then
+      _gh_handle_error "$result" "add '$user' to $org/$team"
+      return 1
+   fi
+
+   local state
+   state=$(echo "$result" | jq -r '.state // "unknown"')
+   echo "✓ $user → $org/$team (role=$role, state=$state)"
+}
+
+# --- ghteam remove-member ---
+_ghteam_remove_member() {
+   local org="$1" team="$2" user="$3"
+
+   if [[ -z "$org" || -z "$team" || -z "$user" ]]; then
+      echo "Usage: ghteam remove-member <org> <team> <user>"
+      return 1
+   fi
+
+   echo -n "Remove '$user' from $org/$team? (y/n): "
+   read -k 1 confirm
+   echo ""
+   if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+      echo "  Cancelled"
+      return 0
+   fi
+
+   local result
+   result=$(_gh_admin api "/orgs/$org/teams/$team/memberships/$user" --method DELETE 2>&1)
+   local rc=$?
+
+   if [[ $rc -ne 0 ]]; then
+      _gh_handle_error "$result" "remove '$user' from $org/$team"
+      return 1
+   fi
+
+   echo "✓ Removed $user from $org/$team"
+}
+
+# --- ghteam set-repo ---
+_ghteam_set_repo() {
+   local org="$1" team="$2" repo="$3" permission="$4"
+
+   if [[ -z "$org" || -z "$team" || -z "$repo" || -z "$permission" ]]; then
+      echo "Usage: ghteam set-repo <org> <team> <repo> <permission>"
+      echo "  Permissions: pull, triage, push, maintain, admin"
+      return 1
+   fi
+
+   local result
+   result=$(_gh_admin api "/orgs/$org/teams/$team/repos/$org/$repo" \
+      --method PUT --field "permission=$permission" 2>&1)
+   local rc=$?
+
+   if [[ $rc -ne 0 ]]; then
+      _gh_handle_error "$result" "set $permission on $org/$repo for $org/$team"
+      return 1
+   fi
+
+   echo "✓ $org/$team → $repo ($permission)"
+}
+
+# --- ghteam fix ---
+_ghteam_fix() {
+   local org="" team="" parent="" description=""
+   while [[ $# -gt 0 ]]; do
+      case "$1" in
+         --parent)      parent="$2"; shift 2 ;;
+         --description) description="$2"; shift 2 ;;
+         *)
+            if [[ -z "$org" ]]; then
+               org="$1"
+            else
+               team="$1"
+            fi
+            shift
+            ;;
+      esac
+   done
+
+   if [[ -z "$org" || -z "$team" ]]; then
+      echo "Usage: ghteam fix <org> <team> [--parent <parent-slug>] [--description \"text\"]"
+      return 1
+   fi
+
+   if [[ -z "$parent" && -z "$description" ]]; then
+      echo "✗ Specify at least --parent or --description"
+      return 1
+   fi
+
+   ## Build JSON body
+   local body="{"
+   local need_comma=0
+   if [[ -n "$description" ]]; then
+      body+="\"description\":\"$description\""
+      need_comma=1
+   fi
+   if [[ -n "$parent" ]]; then
+      ## Resolve parent team slug to ID
+      local parent_id
+      parent_id=$(_gh_admin api "/orgs/$org/teams/$parent" --jq '.id' 2>/dev/null)
+      if [[ -z "$parent_id" ]]; then
+         echo "✗ Could not find parent team: $parent"
+         return 1
+      fi
+      [[ $need_comma -eq 1 ]] && body+=","
+      body+="\"parent_team_id\":$parent_id"
+   fi
+   body+="}"
+
+   local result
+   result=$(_gh_admin api "/orgs/$org/teams/$team" --method PATCH --input - <<< "$body" 2>&1)
+   local rc=$?
+
+   if [[ $rc -ne 0 ]]; then
+      _gh_handle_error "$result" "update team $org/$team"
+      return 1
+   fi
+
+   echo "✓ Updated $org/$team"
+   [[ -n "$parent" ]] && echo "  Parent: $parent"
+   [[ -n "$description" ]] && echo "  Description: $description"
+}
 
 # ====================================
 # ENHANCED: TOKEN SUPPORT & GHE SETUP
