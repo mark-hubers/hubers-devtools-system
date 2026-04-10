@@ -1,0 +1,36 @@
+name: GitHub Toolkit Tests
+
+on:
+  push:
+    paths:
+      - 'terminal-config/home/.zsh/github-cli-toolkit.zsh'
+      - 'tests/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+    paths:
+      - 'terminal-config/home/.zsh/github-cli-toolkit.zsh'
+      - 'tests/**'
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zsh (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y zsh jq
+
+      - name: Install jq (macOS)
+        if: runner.os == 'macOS'
+        run: brew install jq || true
+
+      - name: Syntax check
+        run: zsh -n terminal-config/home/.zsh/github-cli-toolkit.zsh
+
+      - name: Run toolkit tests
+        run: zsh tests/test-runner.sh github

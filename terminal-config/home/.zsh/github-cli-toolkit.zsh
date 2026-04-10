@@ -3,16 +3,36 @@
 # Makes GitHub workflows fast and easy from the terminal!
 # ============================================================================
 
+# Check command dependency
+_gh_require_command() {
+  local cmd="$1"
+  local install_hint="${2:-Install and retry.}"
+  if ! command -v "$cmd" &>/dev/null; then
+    echo "❌ Missing dependency: $cmd"
+    echo "   $install_hint"
+    return 1
+  fi
+  return 0
+}
+
 # Check if gh is installed
 _gh_check() {
+  local require_auth=1
+  [[ "$1" == "--no-auth" ]] && require_auth=0
+
   if ! command -v gh &>/dev/null; then
     echo "❌ GitHub CLI (gh) is not installed"
     echo ""
     echo "Install:"
     if [[ "$OSTYPE" == "darwin"* ]]; then
       echo "  brew install gh"
+    elif [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]] || [[ "$OSTYPE" == "win32"* ]]; then
+      echo "  winget install GitHub.cli"
+      echo "  or: choco install gh"
     elif [[ "$OSTYPE" == "linux-gnu"* ]] || [[ -n "$WSL_DISTRO_NAME" ]]; then
       echo "  See: https://github.com/cli/cli/blob/trunk/docs/install_linux.md"
+    else
+      echo "  See: https://cli.github.com/"
     fi
     echo ""
     echo "After installing, run: gh auth login"
@@ -20,7 +40,7 @@ _gh_check() {
   fi
   
   # Check if authenticated
-  if ! gh auth status &>/dev/null; then
+  if [[ $require_auth -eq 1 ]] && ! gh auth status &>/dev/null; then
     echo "⚠️  Not authenticated with GitHub"
     echo ""
     echo "Run: gh auth login"
@@ -29,6 +49,56 @@ _gh_check() {
   fi
   
   return 0
+}
+
+# Tooling health check
+ghdoctor() {
+  _gh_check --no-auth || return 1
+  echo "📋 GitHub CLI Toolkit Doctor"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  local failed=0
+  local platform="unknown"
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    platform="macOS"
+  elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    platform="Linux"
+  elif [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]] || [[ "$OSTYPE" == "win32"* ]]; then
+    platform="Windows shell"
+  fi
+  echo "Platform: $platform ($OSTYPE)"
+  echo ""
+
+  _gh_require_command gh "Install from https://cli.github.com/" || failed=1
+  _gh_require_command jq "macOS: brew install jq | Linux: apt/yum install jq" || failed=1
+
+  if _gh_require_command fzf "Install fzf for interactive pickers."; then
+    :
+  else
+    echo "⚠ fzf-dependent commands will not work (ghswitch, ghclone, ghrepos)."
+  fi
+
+  if _gh_require_command op "Install 1Password CLI only if you use ghadd option 5."; then
+    :
+  else
+    echo "⚠ Optional: op is only needed for 1Password token loading."
+  fi
+
+  if gh auth status &>/dev/null; then
+    echo "✅ gh auth status: authenticated"
+  else
+    echo "⚠ gh auth status: not authenticated (run: gh auth login)"
+  fi
+
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  if [[ $failed -eq 0 ]]; then
+    echo "✅ Doctor check complete"
+    return 0
+  fi
+  echo "❌ Doctor found blocking issues"
+  return 1
 }
 
 # ====================================
@@ -468,6 +538,9 @@ typeset -gA GH_ACCOUNT_ALIAS
 #        gh-as personal gh api user
 #        gh-as your-work-account gh repo create ...
 gh-as() {
+  emulate -L zsh
+  setopt localtraps
+
   local account_ref="$1"
   shift
 
@@ -490,22 +563,31 @@ gh-as() {
 
   # Get current account to restore later
   local original_account=$(_gh_current_account)
+  local switched=0
+  local exit_code=0
+
+  _ghas_restore_account() {
+    if [[ $switched -eq 1 && -n "$original_account" && "$original_account" != "$account" ]]; then
+      gh auth switch --user "$original_account" &>/dev/null
+    fi
+  }
+  trap '_ghas_restore_account' EXIT INT TERM HUP
 
   # Switch, run command, switch back
   gh auth switch --user "$account" &>/dev/null
   if [[ $? -ne 0 ]]; then
     echo "Error: Could not switch to account '$account'"
+    trap - EXIT INT TERM HUP
     return 1
   fi
+  switched=1
 
   # Run the command
   "$@"
-  local exit_code=$?
+  exit_code=$?
 
-  # Switch back to original
-  if [[ -n "$original_account" && "$original_account" != "$account" ]]; then
-    gh auth switch --user "$original_account" &>/dev/null
-  fi
+  _ghas_restore_account
+  trap - EXIT INT TERM HUP
 
   return $exit_code
 }
@@ -862,8 +944,8 @@ ghissue() {
   gh issue create
 }
 
-# Develop (create branch) from issue
-ghdev() {
+# Develop (create branch) from issue (named ghissuedev — ghdev is profile de-escalate)
+ghissuedev() {
   _gh_check || return 1
   
   if [[ -n "$1" ]]; then
@@ -1193,11 +1275,23 @@ ghhelp() {
 🐙 GITHUB CLI TOOLKIT - Quick Reference
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+PROFILES & ESCALATION:
+  ghprofile list    - Show all profiles
+  ghprofile use <n> - Switch to a profile
+  ghprofile show    - Show active profile details
+  ghprofile create  - Interactive profile creation
+  ghadmin           - Escalate to admin mode (session)
+  ghadmin <cmd>     - One-shot admin command (like sudo)
+  ghdev             - De-escalate to dev mode
+  ghaudit log       - View admin action audit log
+
 SETUP & CONFIGURATION (Work SSO Support!):
   ghsetup           - Interactive GitHub setup (for work SSO)
   ghconfig          - Show current GitHub configuration
   ghtoken           - Interactive token management
   ghtoken-check     - Verify token works
+  ghdoctor          - Check dependencies + auth health
+  ghd               - Alias for ghdoctor
 
 ACCOUNT MANAGEMENT:
   ghlist            - List all configured accounts
@@ -1254,7 +1348,7 @@ PULL REQUESTS:
 ISSUES:
   ghissues          - Browse issues (fzf with preview)
   ghissue           - Create new issue
-  ghdev             - Create branch from issue
+  ghissuedev        - Create branch from issue
 
 BRANCHES:
   ghbranch          - Switch branches (fzf fuzzy find)
@@ -1299,7 +1393,7 @@ QUICK WORKFLOWS:
 
   Create feature:
     ghissue           # Create issue
-    ghdev             # Create branch from issue
+    ghissuedev        # Create branch from issue
     # ... do work ...
     ghpush "feat: add feature"  # Commit, push, create PR
 
@@ -1339,27 +1433,460 @@ alias ghr='ghrepo'           # Quick repo view
 alias ghw='ghwatch'          # Quick watch
 alias ghg='ghgists'          # Quick gists
 alias ghv='ghvar'            # Quick variables
+alias ghd='ghdoctor'         # Toolkit doctor
+
+# ====================================
+# PROFILE SYSTEM
+# ====================================
+# Profiles define org, token source, visibility defaults, and mode.
+# Config lives in ~/.gh-profiles.zsh (optional — toolkit works without it).
+#
+# Token source prefixes:
+#   gh-auth           — use gh's built-in auth (default)
+#   file:/path        — read from file
+#   env:VAR_NAME      — read from env var
+#   keychain:item     — future: macOS Keychain
+#   op:vault/item     — future: 1Password
+
+## Source profile config if it exists
+[[ -f "$HOME/.gh-profiles.zsh" ]] && source "$HOME/.gh-profiles.zsh"
+
+## Activate default profile on shell startup (if configured)
+if [[ -n "$GH_DEFAULT_PROFILE" && -z "$GH_ACTIVE_PROFILE" ]]; then
+   GH_ACTIVE_PROFILE="$GH_DEFAULT_PROFILE"
+   _gh_profile_activate "$GH_DEFAULT_PROFILE" 2>/dev/null
+fi
+
+## Parse a profile's key=value config string into vars
+_gh_profile_parse() {
+   local config="$1"
+   _GH_PROF_ORG=""
+   _GH_PROF_TOKEN="gh-auth"
+   _GH_PROF_VIS=""
+   _GH_PROF_MODE="dev"
+
+   local pair
+   for pair in ${(z)config}; do
+      case "$pair" in
+         org=*)         _GH_PROF_ORG="${pair#org=}" ;;
+         token=*)       _GH_PROF_TOKEN="${pair#token=}" ;;
+         default_vis=*) _GH_PROF_VIS="${pair#default_vis=}" ;;
+         mode=*)        _GH_PROF_MODE="${pair#mode=}" ;;
+      esac
+   done
+}
+
+## Activate a profile (set env vars for current shell)
+_gh_profile_activate() {
+   local name="$1"
+   if [[ -z "${GH_PROFILES[$name]}" ]]; then
+      [[ -n "$name" ]] && echo "✗ Unknown profile: $name"
+      return 1
+   fi
+
+   _gh_profile_parse "${GH_PROFILES[$name]}"
+   export GH_ACTIVE_PROFILE="$name"
+   export GH_PROFILE_ORG="$_GH_PROF_ORG"
+   export GH_PROFILE_TOKEN="$_GH_PROF_TOKEN"
+   export GH_PROFILE_VIS="$_GH_PROF_VIS"
+   export GH_PROFILE_MODE="$_GH_PROF_MODE"
+}
+
+## Resolve token from a token source string
+_gh_resolve_token() {
+   local source="${1:-gh-auth}"
+   case "$source" in
+      gh-auth)
+         ## Use gh's built-in auth — no GH_TOKEN override needed
+         echo ""
+         return 0
+         ;;
+      file:*)
+         local path="${source#file:}"
+         path="${path/#\~/$HOME}"
+         if [[ ! -f "$path" ]]; then
+            echo "✗ Token file not found: $path" >&2
+            return 1
+         fi
+         local perms
+         perms=$(stat -f '%Lp' "$path" 2>/dev/null || stat -c '%a' "$path" 2>/dev/null)
+         if [[ "$perms" != "600" ]]; then
+            echo "⚠ Fixing permissions on $path ($perms → 600)" >&2
+            chmod 600 "$path"
+         fi
+         echo "$(<"$path")"
+         ;;
+      env:*)
+         local var="${source#env:}"
+         echo "${(P)var}"
+         ;;
+      keychain:*)
+         local item="${source#keychain:}"
+         security find-generic-password -a "$item" -s "gh-toolkit" -w 2>/dev/null
+         ;;
+      *)
+         ## Legacy: treat as file path (backward compat with ~/.gh-admin-token)
+         if [[ -f "$source" ]]; then
+            echo "$(<"$source")"
+         else
+            echo "✗ Unknown token source: $source" >&2
+            return 1
+         fi
+         ;;
+   esac
+}
+
+## Profile commands
+ghprofile() {
+   local subcmd="${1:-show}"
+   shift 2>/dev/null
+
+   case "$subcmd" in
+      list)
+         echo "📋 GitHub Profiles"
+         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+         if [[ ${#GH_PROFILES} -eq 0 ]]; then
+            echo "  (none configured)"
+            echo ""
+            echo "  Create ~/.gh-profiles.zsh or run: ghprofile create"
+            return 0
+         fi
+         printf "  %-16s %-20s %-12s %-8s %s\n" "PROFILE" "ORG" "TOKEN" "MODE" "DEFAULT VIS"
+         echo "  ──────────────── ──────────────────── ──────────── ──────── ───────────"
+         local name
+         for name in ${(ko)GH_PROFILES}; do
+            _gh_profile_parse "${GH_PROFILES[$name]}"
+            local active=""
+            [[ "$name" == "$GH_ACTIVE_PROFILE" ]] && active=" *"
+            local token_short="$_GH_PROF_TOKEN"
+            [[ "$token_short" == file:* ]] && token_short="file:..."
+            printf "  %-16s %-20s %-12s %-8s %s%s\n" "$name" "$_GH_PROF_ORG" "$token_short" "$_GH_PROF_MODE" "${_GH_PROF_VIS:--}" "$active"
+         done
+         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+         echo "  * = active profile"
+         ;;
+
+      use)
+         local name="$1"
+         if [[ -z "$name" ]]; then
+            echo "Usage: ghprofile use <name>"
+            echo "  Run 'ghprofile list' to see available profiles."
+            return 1
+         fi
+         _gh_profile_activate "$name" || return 1
+         echo "✓ Switched to profile: $name (org=$GH_PROFILE_ORG, mode=$GH_PROFILE_MODE)"
+         ;;
+
+      show)
+         if [[ -z "$GH_ACTIVE_PROFILE" ]]; then
+            echo "  No active profile. Run: ghprofile use <name>"
+            return 0
+         fi
+         echo "📋 Active Profile: $GH_ACTIVE_PROFILE"
+         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+         echo "  Org:        $GH_PROFILE_ORG"
+         echo "  Token:      $GH_PROFILE_TOKEN"
+         echo "  Mode:       $GH_PROFILE_MODE"
+         echo "  Visibility: ${GH_PROFILE_VIS:-(not set)}"
+         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+         ;;
+
+      create)
+         echo "🔧 Create GitHub Profile"
+         echo ""
+         read "p_name?Profile name (e.g. work-admin, personal): "
+         [[ -z "$p_name" ]] && { echo "✗ Name required"; return 1; }
+
+         read "p_org?Organization (e.g. alvaria-bu): "
+         [[ -z "$p_org" ]] && { echo "✗ Org required"; return 1; }
+
+         echo ""
+         echo "Token source:"
+         echo "  1. Use gh auth (default — browser login)"
+         echo "  2. Token file (e.g. ~/.gh-admin-token)"
+         echo "  3. Environment variable"
+         read "t_choice?Choice (1-3) [1]: "
+         t_choice=${t_choice:-1}
+
+         local p_token="gh-auth"
+         case "$t_choice" in
+            2)
+               read "t_path?Token file path [~/.gh-admin-token]: "
+               t_path=${t_path:-~/.gh-admin-token}
+               p_token="file:$t_path"
+               ;;
+            3)
+               read "t_var?Environment variable name: "
+               p_token="env:$t_var"
+               ;;
+         esac
+
+         echo ""
+         echo "Mode:"
+         echo "  1. dev (read-only, safe default)"
+         echo "  2. admin (org-level write access)"
+         read "m_choice?Choice (1-2) [1]: "
+         local p_mode="dev"
+         [[ "$m_choice" == "2" ]] && p_mode="admin"
+
+         local p_vis=""
+         if [[ "$p_mode" == "admin" ]]; then
+            read "p_vis?Default visibility for org vars/secrets (all/private/selected) [all]: "
+            p_vis=${p_vis:-all}
+         fi
+
+         echo ""
+         echo "Profile config to add to ~/.gh-profiles.zsh:"
+         echo ""
+         local config_line="\"$p_name\"    \"org=$p_org token=$p_token mode=$p_mode${p_vis:+ default_vis=$p_vis}\""
+         echo "   $config_line"
+         echo ""
+
+         read "save?Save to ~/.gh-profiles.zsh? (y/n) [y]: "
+         save=${save:-y}
+         if [[ "$save" == "y" || "$save" == "Y" ]]; then
+            if [[ ! -f "$HOME/.gh-profiles.zsh" ]]; then
+               cat > "$HOME/.gh-profiles.zsh" << 'PROFILES_HEADER'
+# GitHub CLI Toolkit — Profile Configuration
+# Docs: docs/GITHUB-TOOLKIT.md
+typeset -gA GH_PROFILES
+GH_PROFILES=(
+PROFILES_HEADER
+               echo "   $config_line" >> "$HOME/.gh-profiles.zsh"
+               echo ")" >> "$HOME/.gh-profiles.zsh"
+               echo "GH_DEFAULT_PROFILE=\"$p_name\"" >> "$HOME/.gh-profiles.zsh"
+            else
+               ## Insert before closing paren of GH_PROFILES=( ... ) — portable (macOS + Linux)
+               local prof_tmp inserted=0
+               prof_tmp=$(mktemp)
+               while IFS= read -r pline || [[ -n "$pline" ]]; do
+                  if [[ $inserted -eq 0 && "$pline" == ")" ]]; then
+                     print -r -- "   $config_line" >> "$prof_tmp"
+                     inserted=1
+                  fi
+                  print -r -- "$pline" >> "$prof_tmp"
+               done < "$HOME/.gh-profiles.zsh"
+               if [[ $inserted -eq 0 ]]; then
+                  echo "✗ Could not find closing ')' in ~/.gh-profiles.zsh"
+                  rm -f "$prof_tmp"
+                  return 1
+               fi
+               mv "$prof_tmp" "$HOME/.gh-profiles.zsh"
+            fi
+            source "$HOME/.gh-profiles.zsh"
+            _gh_profile_activate "$p_name"
+            echo "✓ Profile '$p_name' saved and activated"
+         fi
+         ;;
+
+      *)
+         echo "📋 ghprofile — GitHub Profile Management"
+         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+         echo ""
+         echo "Usage: ghprofile <command>"
+         echo ""
+         echo "Commands:"
+         echo "  list     Show all profiles"
+         echo "  use      Switch to a profile"
+         echo "  show     Show active profile details"
+         echo "  create   Interactive profile creation"
+         echo ""
+         echo "Profiles define: org, token source, mode (dev/admin), default visibility"
+         echo "Config: ~/.gh-profiles.zsh"
+         return 1
+         ;;
+   esac
+}
+
+# ====================================
+# ADMIN ESCALATION
+# ====================================
+# ghadmin = elevate to admin mode
+# ghdev = de-escalate to dev mode
+
+ghadmin() {
+   if [[ $# -gt 0 ]]; then
+      ## One-shot: run command with admin token in a subshell
+      local admin_profile=""
+      local name
+      for name in ${(ko)GH_PROFILES}; do
+         _gh_profile_parse "${GH_PROFILES[$name]}"
+         if [[ "$_GH_PROF_MODE" == "admin" ]]; then
+            admin_profile="$name"
+            break
+         fi
+      done
+
+      if [[ -z "$admin_profile" ]]; then
+         echo "✗ No admin profile configured. Run: ghprofile create"
+         return 1
+      fi
+
+      _gh_profile_parse "${GH_PROFILES[$admin_profile]}"
+      local token
+      token=$(_gh_resolve_token "$_GH_PROF_TOKEN") || return 1
+
+      ## Subshell: token + profile mode so guardrails and _gh_admin see admin context
+      (
+         [[ -n "$token" ]] && export GH_TOKEN="$token"
+         export GH_PROFILE_MODE=admin
+         export GH_ACTIVE_PROFILE="$admin_profile"
+         export GH_PROFILE_ORG="$_GH_PROF_ORG"
+         export GH_PROFILE_TOKEN="$_GH_PROF_TOKEN"
+         export GH_PROFILE_VIS="$_GH_PROF_VIS"
+         "$@"
+      )
+      return $?
+   fi
+
+   ## Session toggle: find admin profile and activate
+   local admin_profile=""
+   local name
+   for name in ${(ko)GH_PROFILES}; do
+      _gh_profile_parse "${GH_PROFILES[$name]}"
+      if [[ "$_GH_PROF_MODE" == "admin" ]]; then
+         admin_profile="$name"
+         break
+      fi
+   done
+
+   if [[ -z "$admin_profile" ]]; then
+      echo "✗ No admin profile configured. Run: ghprofile create"
+      return 1
+   fi
+
+   ghprofile use "$admin_profile"
+   _gh_audit_log "ghadmin" "escalated to $admin_profile"
+}
+
+ghdev() {
+   if [[ -z "$GH_DEFAULT_PROFILE" ]]; then
+      echo "✗ No default profile set. Add GH_DEFAULT_PROFILE to ~/.gh-profiles.zsh"
+      return 1
+   fi
+   ghprofile use "$GH_DEFAULT_PROFILE"
+   _gh_audit_log "ghdev" "de-escalated to $GH_DEFAULT_PROFILE"
+}
+
+# ====================================
+# PROMPT INDICATOR (Generic)
+# ====================================
+# Sets env vars any prompt system can read:
+#   GH_ACTIVE_PROFILE, GH_PROFILE_MODE
+#
+# Call _gh_prompt_info from your prompt config for a formatted string.
+
+_gh_prompt_info() {
+   if [[ -z "$GH_ACTIVE_PROFILE" ]]; then
+      return 0
+   fi
+   if [[ "$GH_PROFILE_MODE" == "admin" ]]; then
+      echo "[GH:$GH_ACTIVE_PROFILE:admin]"
+   fi
+   ## In dev mode, don't clutter the prompt
+}
+
+# ====================================
+# GUARDRAILS
+# ====================================
+# Block write operations when in dev/read-only mode
+
+_gh_require_admin() {
+   if [[ "$GH_PROFILE_MODE" == "dev" && -n "$GH_ACTIVE_PROFILE" ]]; then
+      echo "✗ Profile '$GH_ACTIVE_PROFILE' is read-only (mode=dev)"
+      echo "  Escalate: ghadmin"
+      echo "  One-shot: ghadmin <command> (runs with admin context)"
+      return 1
+   fi
+   return 0
+}
+
+# ====================================
+# AUDIT LOG
+# ====================================
+# Pipe-delimited flat file: timestamp|profile|command|detail|result
+
+_gh_audit_log() {
+   local command="$1" detail="$2" result="${3:-success}"
+   local logfile="$HOME/.gh-toolkit-audit.log"
+   local ts
+   ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+   echo "${ts}|${GH_ACTIVE_PROFILE:-none}|${command}|${detail}|${result}" >> "$logfile"
+}
+
+ghaudit() {
+   local subcmd="${1:-log}"
+   shift 2>/dev/null
+
+   case "$subcmd" in
+      log)
+         local logfile="$HOME/.gh-toolkit-audit.log"
+         if [[ ! -f "$logfile" ]]; then
+            echo "  No audit log yet. Admin actions will be logged automatically."
+            return 0
+         fi
+
+         local filter=""
+         case "${1:-}" in
+            --today)
+               filter=$(date -u +"%Y-%m-%d")
+               ;;
+            --profile)
+               filter="$2"
+               ;;
+         esac
+
+         echo "📋 Audit Log"
+         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+         printf "  %-22s %-14s %-16s %s\n" "TIMESTAMP" "PROFILE" "COMMAND" "DETAIL"
+         echo "  ──────────────────── ────────────── ──────────────── ────────────────────"
+
+         if [[ -n "$filter" ]]; then
+            grep "$filter" "$logfile"
+         else
+            tail -20 "$logfile"
+         fi | while IFS='|' read -r ts prof cmd detail result; do
+            printf "  %-22s %-14s %-16s %s\n" "${ts%T*} ${ts#*T}" "$prof" "$cmd" "$detail"
+         done
+         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+         ;;
+      *)
+         echo "Usage: ghaudit log [--today | --profile <name>]"
+         ;;
+   esac
+}
 
 # ====================================
 # ORG/REPO VARIABLE MANAGEMENT
 # ====================================
 # Wraps GitHub Actions Variables API for org and repo scope.
-# Org operations use admin token from ~/.gh-admin-token.
+# Org operations use admin token (from profile or ~/.gh-admin-token).
 
 # Run gh with admin token (for org-level operations)
+# Profile-aware: uses profile token source if active, falls back to ~/.gh-admin-token
 _gh_admin() {
+   ## If a profile is active, use its token source
+   if [[ -n "$GH_PROFILE_TOKEN" && "$GH_PROFILE_TOKEN" != "gh-auth" ]]; then
+      local token
+      token=$(_gh_resolve_token "$GH_PROFILE_TOKEN") || return 1
+      if [[ -n "$token" ]]; then
+         GH_TOKEN="$token" gh "$@"
+         return $?
+      fi
+   fi
+
+   ## Fallback: legacy ~/.gh-admin-token file
    local token_file="$HOME/.gh-admin-token"
    if [[ ! -f "$token_file" ]]; then
       echo "✗ Admin token not found: $token_file"
       echo ""
-      echo "Create it:"
-      echo "  1. Generate a classic PAT with admin:org scope"
-      echo "  2. echo 'ghp_YourTokenHere' > ~/.gh-admin-token"
-      echo "  3. chmod 600 ~/.gh-admin-token"
+      echo "Options:"
+      echo "  1. Create a profile:   ghprofile create"
+      echo "  2. Manual token file:  echo 'ghp_xxx' > ~/.gh-admin-token && chmod 600 ~/.gh-admin-token"
       return 1
    fi
    local perms
-   perms=$(stat -f '%Lp' "$token_file" 2>/dev/null)
+   perms=$(stat -f '%Lp' "$token_file" 2>/dev/null || stat -c '%a' "$token_file" 2>/dev/null)
    if [[ "$perms" != "600" ]]; then
       echo "⚠ Fixing permissions on $token_file ($perms → 600)"
       chmod 600 "$token_file"
@@ -1372,17 +1899,25 @@ _gh_admin() {
 _gh_parse_target() {
    local target="$1"
 
-   ## Strip whitespace
-   target="${target## }"
-   target="${target%% }"
+   ## Strip all leading/trailing whitespace
+   target="${target#"${target%%[![:space:]]*}"}"
+   target="${target%"${target##*[![:space:]]}"}"
 
    if [[ -z "$target" ]]; then
+      ## Try active profile's org first
+      if [[ -n "$GH_PROFILE_ORG" ]]; then
+         _GH_SCOPE="org"
+         _GH_API_PATH="/orgs/$GH_PROFILE_ORG/actions/variables"
+         _GH_TARGET_LABEL="$GH_PROFILE_ORG"
+         return 0
+      fi
+
       ## Auto-detect from git remote
       local remote_url
       remote_url=$(git remote get-url origin 2>/dev/null)
       if [[ -z "$remote_url" ]]; then
-         echo "✗ No target specified and not in a git repo with a remote"
-         echo "Usage: ghvar <cmd> [name] [value] [org | owner/repo]"
+         echo "✗ No target specified, no active profile, and not in a git repo"
+         echo "  Run: ghprofile use <name>  or specify a target"
          return 1
       fi
       local owner_repo
@@ -1427,9 +1962,27 @@ _gh_scoped() {
    fi
 }
 
+_gh_require_jq() {
+   _gh_require_command jq "Install jq (required for ghvar/ghsecret/ghteam output parsing)." || return 1
+}
+
+_gh_secrets_api_path() {
+   if [[ -z "$_GH_API_PATH" ]]; then
+      echo ""
+      return 1
+   fi
+
+   if [[ "$_GH_SCOPE" == "org" ]]; then
+      echo "/orgs/$_GH_TARGET_LABEL/actions/secrets"
+   else
+      echo "/repos/$_GH_TARGET_LABEL/actions/secrets"
+   fi
+}
+
 # Main ghvar command
 ghvar() {
    _gh_check || return 1
+   _gh_require_jq || return 1
 
    local subcmd="$1"
    shift 2>/dev/null
@@ -1447,6 +2000,9 @@ ghvar() {
       delete)
          _ghvar_delete "$@"
          ;;
+      import)
+         _ghvar_import "$@"
+         ;;
       *)
          echo "📋 ghvar — GitHub Actions Variable Management"
          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -1458,6 +2014,7 @@ ghvar() {
          echo "  get    <name> [target]                   Show variable details"
          echo "  set    <name> <value> [target] [flags]   Create or update variable"
          echo "  delete <name> [target]                   Delete variable"
+         echo "  import <file> <target> [flags]            Bulk set from KEY=VALUE file"
          echo ""
          echo "Target (positional — auto-detected if omitted):"
          echo "  alvaria-bu          Org scope (uses admin token)"
@@ -1470,6 +2027,7 @@ ghvar() {
          echo ""
          echo "Options:"
          echo "  --json              Machine-readable output"
+         echo "  --dry-run           Show what would happen without making changes"
          echo ""
          echo "Examples:"
          echo "  ghvar list alvaria-bu"
@@ -1592,10 +2150,11 @@ _ghvar_get() {
 
 # --- ghvar set ---
 _ghvar_set() {
-   local name="" value="" target="" visibility="" repos="" json_mode=0
+   local name="" value="" target="" visibility="" repos="" json_mode=0 dry_run=0
    while [[ $# -gt 0 ]]; do
       case "$1" in
          --json) json_mode=1; shift ;;
+         --dry-run) dry_run=1; shift ;;
          --visibility) visibility="$2"; shift 2 ;;
          --repos) repos="$2"; shift 2 ;;
          *)
@@ -1618,15 +2177,29 @@ _ghvar_set() {
 
    _gh_parse_target "$target" || return 1
 
-   ## Build JSON body
-   local body="{\"name\":\"$name\",\"value\":\"$value\"}"
+   ## Dry-run: validate and show what would happen without API calls
+   if [[ $dry_run -eq 1 ]]; then
+      if [[ "$_GH_SCOPE" == "org" && -z "$visibility" ]]; then
+         echo "✗ Org variable requires --visibility (all, private, or selected)"
+         return 1
+      fi
+      echo "[dry-run] Would set variable '$name' on $_GH_TARGET_LABEL"
+      echo "  Scope: $_GH_SCOPE"
+      echo "  Value: $value"
+      [[ -n "$visibility" ]] && echo "  Visibility: $visibility"
+      [[ -n "$repos" ]] && echo "  Repos: $repos"
+      return 0
+   fi
+
+   _gh_require_admin || return 1
+
+   ## Build JSON body safely with jq
+   local body=""
 
    if [[ "$_GH_SCOPE" == "org" ]]; then
       if [[ -n "$visibility" ]]; then
-         body="{\"name\":\"$name\",\"value\":\"$value\",\"visibility\":\"$visibility\"}"
          if [[ "$visibility" == "selected" && -n "$repos" ]]; then
             ## Resolve repo names to IDs
-            local repo_ids="[]"
             local org="$_GH_TARGET_LABEL"
             local ids=()
             for repo_name in ${(s:,:)repos}; do
@@ -1638,12 +2211,22 @@ _ghvar_set() {
                   echo "⚠ Could not resolve repo: $org/$repo_name"
                fi
             done
-            if [[ ${#ids[@]} -gt 0 ]]; then
-               repo_ids="[$(IFS=,; echo "${ids[*]}")]"
-            fi
-            body="{\"name\":\"$name\",\"value\":\"$value\",\"visibility\":\"$visibility\",\"selected_repository_ids\":$repo_ids}"
+            local repo_ids_json
+            repo_ids_json="$(printf '%s\n' "${ids[@]}" | jq -R 'select(length>0) | tonumber' | jq -s '.')"
+            body="$(jq -nc \
+               --arg n "$name" \
+               --arg v "$value" \
+               --arg vis "$visibility" \
+               --argjson rid "${repo_ids_json:-[]}" \
+               '{name:$n, value:$v, visibility:$vis, selected_repository_ids:$rid}')"
+         else
+            body="$(jq -nc --arg n "$name" --arg v "$value" --arg vis "$visibility" '{name:$n, value:$v, visibility:$vis}')"
          fi
+      else
+         body="$(jq -nc --arg n "$name" --arg v "$value" '{name:$n, value:$v}')"
       fi
+   else
+      body="$(jq -nc --arg n "$name" --arg v "$value" '{name:$n, value:$v}')"
    fi
 
    ## Try update (PATCH) first
@@ -1685,10 +2268,11 @@ _ghvar_set() {
 
 # --- ghvar delete ---
 _ghvar_delete() {
-   local name="" target="" json_mode=0
+   local name="" target="" json_mode=0 dry_run=0
    for arg in "$@"; do
       case "$arg" in
          --json) json_mode=1 ;;
+         --dry-run) dry_run=1 ;;
          *)
             if [[ -z "$name" ]]; then
                name="$arg"
@@ -1706,6 +2290,13 @@ _ghvar_delete() {
 
    _gh_parse_target "$target" || return 1
 
+   if [[ $dry_run -eq 1 ]]; then
+      echo "[dry-run] Would delete variable '$name' from $_GH_TARGET_LABEL"
+      return 0
+   fi
+
+   _gh_require_admin || return 1
+
    local result
    result=$(_gh_scoped api "$_GH_API_PATH/$name" --method DELETE 2>&1)
    local rc=$?
@@ -1720,6 +2311,141 @@ _ghvar_delete() {
    else
       echo "✓ Deleted $name from $_GH_TARGET_LABEL"
    fi
+}
+
+# --- ghvar import ---
+_ghvar_import() {
+   local file="" target="" visibility="" dry_run=0
+   while [[ $# -gt 0 ]]; do
+      case "$1" in
+         --dry-run) dry_run=1; shift ;;
+         --visibility) visibility="$2"; shift 2 ;;
+         *)
+            if [[ -z "$file" ]]; then
+               file="$1"
+            else
+               target="$1"
+            fi
+            shift
+            ;;
+      esac
+   done
+
+   if [[ -z "$file" || -z "$target" ]]; then
+      echo "Usage: ghvar import <file> <target> [--visibility all|private|selected] [--dry-run]"
+      echo ""
+      echo "File format (KEY=VALUE, one per line):"
+      echo "  AWS_REGION=us-east-1"
+      echo "  DEPLOY_ENV=staging"
+      echo "  # comments and blank lines are ignored"
+      return 1
+   fi
+
+   if [[ ! -f "$file" ]]; then
+      echo "✗ File not found: $file"
+      return 1
+   fi
+
+   _gh_parse_target "$target" || return 1
+
+   ## Require visibility for org scope
+   if [[ "$_GH_SCOPE" == "org" && -z "$visibility" ]]; then
+      echo "✗ Org import requires --visibility (all, private, or selected)"
+      return 1
+   fi
+
+   ## Count valid lines
+   local total=0 success=0 failed=0
+   local -a vars=()
+   while IFS= read -r line; do
+      ## Normalize and skip comments/blank lines
+      line="${line#"${line%%[![:space:]]*}"}"
+      line="${line%"${line##*[![:space:]]}"}"
+      [[ -z "$line" || "$line" == \#* ]] && continue
+      ## Must contain =
+      if [[ "$line" != *=* ]]; then
+         echo "⚠ Skipping invalid line: $line"
+         continue
+      fi
+
+      local var_name="${line%%=*}"
+      var_name="${var_name#"${var_name%%[![:space:]]*}"}"
+      var_name="${var_name%"${var_name##*[![:space:]]}"}"
+      if [[ -z "$var_name" ]]; then
+         echo "⚠ Skipping invalid line (empty key): $line"
+         continue
+      fi
+      vars+=("$line")
+      ((total++))
+   done < "$file"
+
+   if [[ $total -eq 0 ]]; then
+      echo "✗ No valid KEY=VALUE lines found in $file"
+      return 1
+   fi
+
+   echo "📋 Import: $total variable(s) → $_GH_TARGET_LABEL"
+   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+   if [[ $dry_run -eq 0 ]]; then
+      _gh_require_admin || return 1
+   fi
+
+   for entry in "${vars[@]}"; do
+      local var_name="${entry%%=*}"
+      local var_value="${entry#*=}"
+      var_name="${var_name#"${var_name%%[![:space:]]*}"}"
+      var_name="${var_name%"${var_name##*[![:space:]]}"}"
+
+      if [[ $dry_run -eq 1 ]]; then
+         printf "  [dry-run] %-28s = %s\n" "$var_name" "$var_value"
+         ((success++))
+         continue
+      fi
+
+      ## Build body with jq
+      local body
+      if [[ "$_GH_SCOPE" == "org" && -n "$visibility" ]]; then
+         body="$(jq -nc --arg n "$var_name" --arg v "$var_value" --arg vis "$visibility" '{name:$n, value:$v, visibility:$vis}')"
+      else
+         body="$(jq -nc --arg n "$var_name" --arg v "$var_value" '{name:$n, value:$v}')"
+      fi
+
+      ## PATCH (update) first, POST (create) on 404
+      ## Capture stderr only (error msgs); discard stdout (response body)
+      local result
+      result=$(_gh_scoped api "$_GH_API_PATH/$var_name" --method PATCH --input - <<< "$body" 2>&1 >/dev/null)
+      local rc=$?
+
+      if [[ $rc -ne 0 ]]; then
+         if echo "$result" | grep -qi '404\|not found'; then
+            result=$(_gh_scoped api "$_GH_API_PATH" --method POST --input - <<< "$body" 2>&1 >/dev/null)
+            rc=$?
+            if [[ $rc -ne 0 ]]; then
+               printf "  ✗ %-28s FAILED (create)\n" "$var_name"
+               ((failed++))
+               continue
+            fi
+            printf "  ✓ %-28s created\n" "$var_name"
+         else
+            printf "  ✗ %-28s FAILED (update)\n" "$var_name"
+            ((failed++))
+            continue
+         fi
+      else
+         printf "  ✓ %-28s updated\n" "$var_name"
+      fi
+      ((success++))
+   done
+
+   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+   if [[ $dry_run -eq 1 ]]; then
+      echo "  [dry-run] $total variable(s) would be set"
+   else
+      echo "  $success set, $failed failed (of $total)"
+   fi
+   [[ $failed -gt 0 ]] && return 1
+   return 0
 }
 
 # --- Shared error handler (used by ghvar, ghsecret, ghteam) ---
@@ -1758,6 +2484,7 @@ _gh_handle_error() {
 
 ghsecret() {
    _gh_check || return 1
+   _gh_require_jq || return 1
 
    local subcmd="$1"
    shift 2>/dev/null
@@ -1802,8 +2529,11 @@ _ghsecret_list() {
 
    _gh_parse_target "$target" || return 1
 
+   local secrets_api_path
+   secrets_api_path="$(_gh_secrets_api_path)" || return 1
+
    local result
-   result=$(_gh_scoped api "${_GH_API_PATH%/variables}/secrets" --paginate 2>&1)
+   result=$(_gh_scoped api "$secrets_api_path" --paginate 2>&1)
    local rc=$?
 
    if [[ $rc -ne 0 ]]; then
@@ -1849,9 +2579,10 @@ _ghsecret_list() {
 
 # --- ghsecret set ---
 _ghsecret_set() {
-   local name="" target="" visibility="" repos=""
+   local name="" target="" visibility="" repos="" dry_run=0
    while [[ $# -gt 0 ]]; do
       case "$1" in
+         --dry-run) dry_run=1; shift ;;
          --visibility) visibility="$2"; shift 2 ;;
          --repos) repos="$2"; shift 2 ;;
          *)
@@ -1866,11 +2597,21 @@ _ghsecret_set() {
    done
 
    if [[ -z "$name" ]]; then
-      echo "Usage: ghsecret set <name> [target] [--visibility all|private|selected]"
+      echo "Usage: ghsecret set <name> [target] [--visibility all|private|selected] [--dry-run]"
       return 1
    fi
 
    _gh_parse_target "$target" || return 1
+
+   if [[ $dry_run -eq 1 ]]; then
+      echo "[dry-run] Would set secret '$name' on $_GH_TARGET_LABEL"
+      echo "  Scope: $_GH_SCOPE"
+      [[ -n "$visibility" ]] && echo "  Visibility: $visibility"
+      echo "  (value would be prompted interactively)"
+      return 0
+   fi
+
+   _gh_require_admin || return 1
 
    ## Read secret value silently
    local secret_value
@@ -1889,6 +2630,9 @@ _ghsecret_set() {
       cmd_args+=("--org" "$_GH_TARGET_LABEL")
       if [[ -n "$visibility" ]]; then
          cmd_args+=("--visibility" "$visibility")
+         if [[ "$visibility" == "selected" && -n "$repos" ]]; then
+            cmd_args+=("--repos" "$repos")
+         fi
       else
          echo "✗ Org secret requires --visibility (all, private, or selected)"
          return 1
@@ -1912,21 +2656,36 @@ _ghsecret_set() {
 
 # --- ghsecret delete ---
 _ghsecret_delete() {
-   local name="" target=""
+   local name="" target="" dry_run=0
    for arg in "$@"; do
-      if [[ -z "$name" ]]; then
-         name="$arg"
-      else
-         target="$arg"
-      fi
+      case "$arg" in
+         --dry-run) dry_run=1 ;;
+         *)
+            if [[ -z "$name" ]]; then
+               name="$arg"
+            else
+               target="$arg"
+            fi
+            ;;
+      esac
    done
 
    if [[ -z "$name" ]]; then
-      echo "Usage: ghsecret delete <name> [target]"
+      echo "Usage: ghsecret delete <name> [target] [--dry-run]"
       return 1
    fi
 
    _gh_parse_target "$target" || return 1
+
+   local secrets_api_path
+   secrets_api_path="$(_gh_secrets_api_path)" || return 1
+
+   if [[ $dry_run -eq 1 ]]; then
+      echo "[dry-run] Would delete secret '$name' from $_GH_TARGET_LABEL"
+      return 0
+   fi
+
+   _gh_require_admin || return 1
 
    ## Confirm
    echo -n "Delete secret '$name' from $_GH_TARGET_LABEL? (y/n): "
@@ -1938,7 +2697,7 @@ _ghsecret_delete() {
    fi
 
    local result
-   result=$(_gh_scoped api "${_GH_API_PATH%/variables}/secrets/$name" --method DELETE 2>&1)
+   result=$(_gh_scoped api "$secrets_api_path/$name" --method DELETE 2>&1)
    local rc=$?
 
    if [[ $rc -ne 0 ]]; then
@@ -1956,6 +2715,7 @@ _ghsecret_delete() {
 
 ghteam() {
    _gh_check || return 1
+   _gh_require_jq || return 1
 
    local subcmd="$1"
    shift 2>/dev/null
@@ -2137,9 +2897,10 @@ _ghteam_show() {
 
 # --- ghteam add-member ---
 _ghteam_add_member() {
-   local org="" team="" user="" role="member"
+   local org="" team="" user="" role="member" dry_run=0
    while [[ $# -gt 0 ]]; do
       case "$1" in
+         --dry-run) dry_run=1; shift ;;
          --role) role="$2"; shift 2 ;;
          *)
             if [[ -z "$org" ]]; then
@@ -2155,9 +2916,16 @@ _ghteam_add_member() {
    done
 
    if [[ -z "$org" || -z "$team" || -z "$user" ]]; then
-      echo "Usage: ghteam add-member <org> <team> <user> [--role member|maintainer]"
+      echo "Usage: ghteam add-member <org> <team> <user> [--role member|maintainer] [--dry-run]"
       return 1
    fi
+
+   if [[ $dry_run -eq 1 ]]; then
+      echo "[dry-run] Would add '$user' to $org/$team (role=$role)"
+      return 0
+   fi
+
+   _gh_require_admin || return 1
 
    local result
    result=$(_gh_admin api "/orgs/$org/teams/$team/memberships/$user" \
@@ -2176,12 +2944,30 @@ _ghteam_add_member() {
 
 # --- ghteam remove-member ---
 _ghteam_remove_member() {
-   local org="$1" team="$2" user="$3"
+   local org="" team="" user="" dry_run=0
+   for arg in "$@"; do
+      case "$arg" in
+         --dry-run) dry_run=1 ;;
+         *)
+            if [[ -z "$org" ]]; then org="$arg"
+            elif [[ -z "$team" ]]; then team="$arg"
+            else user="$arg"
+            fi
+            ;;
+      esac
+   done
 
    if [[ -z "$org" || -z "$team" || -z "$user" ]]; then
-      echo "Usage: ghteam remove-member <org> <team> <user>"
+      echo "Usage: ghteam remove-member <org> <team> <user> [--dry-run]"
       return 1
    fi
+
+   if [[ $dry_run -eq 1 ]]; then
+      echo "[dry-run] Would remove '$user' from $org/$team"
+      return 0
+   fi
+
+   _gh_require_admin || return 1
 
    echo -n "Remove '$user' from $org/$team? (y/n): "
    read -k 1 confirm
@@ -2205,13 +2991,32 @@ _ghteam_remove_member() {
 
 # --- ghteam set-repo ---
 _ghteam_set_repo() {
-   local org="$1" team="$2" repo="$3" permission="$4"
+   local org="" team="" repo="" permission="" dry_run=0
+   for arg in "$@"; do
+      case "$arg" in
+         --dry-run) dry_run=1 ;;
+         *)
+            if [[ -z "$org" ]]; then org="$arg"
+            elif [[ -z "$team" ]]; then team="$arg"
+            elif [[ -z "$repo" ]]; then repo="$arg"
+            else permission="$arg"
+            fi
+            ;;
+      esac
+   done
 
    if [[ -z "$org" || -z "$team" || -z "$repo" || -z "$permission" ]]; then
-      echo "Usage: ghteam set-repo <org> <team> <repo> <permission>"
+      echo "Usage: ghteam set-repo <org> <team> <repo> <permission> [--dry-run]"
       echo "  Permissions: pull, triage, push, maintain, admin"
       return 1
    fi
+
+   if [[ $dry_run -eq 1 ]]; then
+      echo "[dry-run] Would set $permission on $org/$repo for $org/$team"
+      return 0
+   fi
+
+   _gh_require_admin || return 1
 
    local result
    result=$(_gh_admin api "/orgs/$org/teams/$team/repos/$org/$repo" \
@@ -2228,9 +3033,10 @@ _ghteam_set_repo() {
 
 # --- ghteam fix ---
 _ghteam_fix() {
-   local org="" team="" parent="" description=""
+   local org="" team="" parent="" description="" dry_run=0
    while [[ $# -gt 0 ]]; do
       case "$1" in
+         --dry-run)     dry_run=1; shift ;;
          --parent)      parent="$2"; shift 2 ;;
          --description) description="$2"; shift 2 ;;
          *)
@@ -2245,7 +3051,7 @@ _ghteam_fix() {
    done
 
    if [[ -z "$org" || -z "$team" ]]; then
-      echo "Usage: ghteam fix <org> <team> [--parent <parent-slug>] [--description \"text\"]"
+      echo "Usage: ghteam fix <org> <team> [--parent <parent-slug>] [--description \"text\"] [--dry-run]"
       return 1
    fi
 
@@ -2254,12 +3060,21 @@ _ghteam_fix() {
       return 1
    fi
 
-   ## Build JSON body
-   local body="{"
-   local need_comma=0
+   if [[ $dry_run -eq 1 ]]; then
+      echo "[dry-run] Would update team $org/$team"
+      [[ -n "$parent" ]] && echo "  Parent: → $parent"
+      [[ -n "$description" ]] && echo "  Description: → $description"
+      return 0
+   fi
+
+   _gh_require_admin || return 1
+
+   ## Build JSON body safely
+   local body
    if [[ -n "$description" ]]; then
-      body+="\"description\":\"$description\""
-      need_comma=1
+      body="$(jq -nc --arg desc "$description" '{description: $desc}')"
+   else
+      body='{}'
    fi
    if [[ -n "$parent" ]]; then
       ## Resolve parent team slug to ID
@@ -2269,10 +3084,8 @@ _ghteam_fix() {
          echo "✗ Could not find parent team: $parent"
          return 1
       fi
-      [[ $need_comma -eq 1 ]] && body+=","
-      body+="\"parent_team_id\":$parent_id"
+      body="$(echo "$body" | jq -c --argjson pid "$parent_id" '. + {parent_team_id: $pid}')"
    fi
-   body+="}"
 
    local result
    result=$(_gh_admin api "/orgs/$org/teams/$team" --method PATCH --input - <<< "$body" 2>&1)
