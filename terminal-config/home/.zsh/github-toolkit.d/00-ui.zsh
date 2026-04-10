@@ -36,6 +36,14 @@ _gh_flags_reset() {
    _GH_F_DRY=0
    _GH_F_VIS=""
    _GH_F_REPOS=""
+   _GH_F_ROLE=""
+   _GH_F_PARENT=""
+   _GH_F_DESC=""
+   _GH_F_NO_MEMBERS=0
+   _GH_F_NO_REPOS=0
+   _GH_F_TODAY=0
+   _GH_F_PROFILE=""
+   _GH_F_YES=0
    _GH_F_POS=()
 }
 

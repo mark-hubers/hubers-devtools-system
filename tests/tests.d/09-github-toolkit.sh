@@ -8,6 +8,7 @@ test_github_toolkit() {
 
     local toolkit_file="$HOME/.zsh/github-cli-toolkit.zsh"
     local source_toolkit_file="$DEVTOOLS_DIR/terminal-config/home/.zsh/github-cli-toolkit.zsh"
+    local toolkit_modules_dir="$DEVTOOLS_DIR/terminal-config/home/.zsh/github-toolkit.d"
 
     if [[ -f "$source_toolkit_file" ]]; then
         pass_test "Toolkit source file exists"
@@ -22,10 +23,49 @@ test_github_toolkit() {
         fail_test "Toolkit syntax check failed"
     fi
 
-    if zsh -c "source \"$source_toolkit_file\"; typeset -f ghdoctor ghvar ghsecret ghteam gh-as > /dev/null" > /dev/null 2>&1; then
-        pass_test "Primary toolkit commands are defined"
+    if [[ -d "$toolkit_modules_dir" ]]; then
+        local mod_count=0
+        local mod_fail=0
+        local mod
+        for mod in "$toolkit_modules_dir"/*.zsh(N); do
+            ((mod_count++))
+            zsh -n "$mod" > /dev/null 2>&1 || mod_fail=1
+        done
+        if [[ $mod_fail -eq 0 && $mod_count -eq 10 ]]; then
+            pass_test "All 10 toolkit modules syntax-check clean"
+        elif [[ $mod_fail -eq 0 ]]; then
+            fail_test "Toolkit module count is $mod_count (expected 10)"
+        else
+            fail_test "One or more toolkit modules failed zsh -n"
+        fi
     else
-        fail_test "Primary toolkit commands not fully defined"
+        fail_test "Toolkit modules directory missing: $toolkit_modules_dir"
+    fi
+
+    if zsh -c "source \"$source_toolkit_file\"; typeset -f ghdoctor ghvar ghsecret ghteam gh-as ghprofile ghadmin ghdev _gh_parse_target _gh_require_admin _gh_rule _gh_title _gh_kv _gh_flags_parse > /dev/null" > /dev/null 2>&1; then
+        pass_test "Key toolkit functions exist after load"
+    else
+        fail_test "Key toolkit functions missing after load"
+    fi
+
+    if zsh -c "
+        source \"$source_toolkit_file\"
+        local -a ui_lines
+        ui_lines=(\"\${(@f)\$(_gh_title 'UI-TEST-TITLE')}\")
+        rule=\$(printf '%*s' 57 '' | tr ' ' '━')
+        [[ \"\${ui_lines[1]}\" == 'UI-TEST-TITLE' ]] || exit 1
+        [[ \"\${ui_lines[2]}\" == \"\$rule\" ]] || exit 1
+        _gh_kv 'Key' 'Value' 8 | grep -q 'Key:' || exit 1
+        _gh_flags_parse --json --dry-run --visibility all myorg rest
+        [[ \"\$_GH_F_JSON\" -eq 1 ]] || exit 1
+        [[ \"\$_GH_F_DRY\" -eq 1 ]] || exit 1
+        [[ \"\$_GH_F_VIS\" == 'all' ]] || exit 1
+        [[ \"\${_GH_F_POS[1]}\" == 'myorg' ]] || exit 1
+        [[ \"\${_GH_F_POS[2]}\" == 'rest' ]] || exit 1
+    " > /dev/null 2>&1; then
+        pass_test "UI helpers (_gh_title, _gh_rule, _gh_kv, _gh_flags_parse) behave correctly"
+    else
+        fail_test "UI helper verification failed"
     fi
 
     if zsh -c "

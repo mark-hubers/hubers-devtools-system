@@ -14,12 +14,6 @@
 ## Source profile config if it exists
 [[ -f "$HOME/.gh-profiles.zsh" ]] && source "$HOME/.gh-profiles.zsh"
 
-## Activate default profile on shell startup (if configured)
-if [[ -n "$GH_DEFAULT_PROFILE" && -z "$GH_ACTIVE_PROFILE" ]]; then
-   GH_ACTIVE_PROFILE="$GH_DEFAULT_PROFILE"
-   _gh_profile_activate "$GH_DEFAULT_PROFILE" 2>/dev/null
-fi
-
 ## Parse a profile's key=value config string into vars
 _gh_profile_parse() {
    local config="$1"
@@ -54,6 +48,12 @@ _gh_profile_activate() {
    export GH_PROFILE_VIS="$_GH_PROF_VIS"
    export GH_PROFILE_MODE="$_GH_PROF_MODE"
 }
+
+## Activate default profile on shell startup (must run after _gh_profile_activate is defined)
+if [[ -n "$GH_DEFAULT_PROFILE" && -z "$GH_ACTIVE_PROFILE" ]]; then
+   GH_ACTIVE_PROFILE="$GH_DEFAULT_PROFILE"
+   _gh_profile_activate "$GH_DEFAULT_PROFILE" 2>/dev/null
+fi
 
 ## Resolve token from a token source string
 _gh_resolve_token() {
