@@ -77,6 +77,13 @@ for dir in aliases.d functions.d path.d; do
 done
 cp home/.zsh/*.zsh ~/.zsh/
 cp home/.zsh/_kubectl_static ~/.zsh/
+
+# Copy toolkit modules
+if [[ -d "home/.zsh/github-toolkit.d" ]]; then
+  mkdir -p ~/.zsh/github-toolkit.d
+  cp home/.zsh/github-toolkit.d/*.zsh ~/.zsh/github-toolkit.d/
+fi
+
 cp home/.zsh/previews/*.zsh ~/.zsh/previews/
 
 # Copy documentation (remove old first to avoid nesting)
