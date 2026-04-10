@@ -545,6 +545,7 @@ ghhelp() {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 PROFILES & ESCALATION:
+  ghprofile help    - Profile guide (config file, ghadmin/ghdev, audit)
   ghprofile list    - Show all profiles
   ghprofile use <n> - Switch to a profile
   ghprofile show    - Show active profile details
@@ -552,7 +553,7 @@ PROFILES & ESCALATION:
   ghadmin           - Escalate to admin mode (session)
   ghadmin <cmd>     - One-shot admin command (like sudo)
   ghdev             - De-escalate to dev mode
-  ghaudit log       - View admin action audit log
+  ghaudit log       - View local admin action log (~/.gh-toolkit-audit.log)
 
 SETUP & CONFIGURATION (Work SSO Support!):
   ghsetup           - Interactive GitHub setup (for work SSO)
@@ -595,7 +596,7 @@ TEAMS:
   (target: org-name = org scope, owner/repo = repo, omit = current repo)
 
 ORGANIZATION (Work):
-  ghaudit           - Run organization audit script
+  ghorgaudit        - Run org audit PowerShell script (if installed)
   ghorg <name>      - Browse org repositories
 
 REPOSITORIES:

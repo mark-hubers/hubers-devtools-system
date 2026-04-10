@@ -91,7 +91,7 @@ export GITHUB_TOKEN='$gh_token'
 export GITHUB_ORG='$gh_org'
 export GITHUB_USER='$gh_email'
 EOF
-      chmod 600 ~/.github_config
+      _gh_chmod_600 ~/.github_config
       
       if ! grep -q "~/.github_config" ~/.zshrc; then
         echo "" >> ~/.zshrc
@@ -112,7 +112,7 @@ EOF
   echo ""
   echo "Available commands:"
   echo "  • ghconfig      - View current configuration"
-  echo "  • ghaudit       - Run organization audit"
+  echo "  • ghorgaudit    - Run organization audit (PowerShell script)"
   echo "  • ghprs         - Browse pull requests"
   echo "  • ghissues      - Browse issues"
   echo "  • ghorg         - Browse organization repos"
@@ -206,7 +206,7 @@ ghtoken() {
         ;;
       3)
         echo "$token" > ~/.github_token
-        chmod 600 ~/.github_token
+        _gh_chmod_600 ~/.github_token
         if ! grep -q "GITHUB_TOKEN.*github_token" ~/.zshrc; then
           echo "" >> ~/.zshrc
           echo "# GitHub Token (load from file)" >> ~/.zshrc
@@ -269,8 +269,8 @@ ghtoken-check() {
   fi
 }
 
-# Run GitHub organization audit script
-ghaudit() {
+# Run GitHub organization audit script (PowerShell). Not the same as: ghaudit log (local action log in 03-profiles).
+ghorgaudit() {
   _gh_check || return 1
   
   # Look for audit script

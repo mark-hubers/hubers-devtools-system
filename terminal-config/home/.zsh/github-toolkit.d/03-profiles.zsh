@@ -49,11 +49,19 @@ _gh_profile_activate() {
    export GH_PROFILE_MODE="$_GH_PROF_MODE"
 }
 
-## Activate default profile on shell startup (must run after _gh_profile_activate is defined)
-if [[ -n "$GH_DEFAULT_PROFILE" && -z "$GH_ACTIVE_PROFILE" ]]; then
-   GH_ACTIVE_PROFILE="$GH_DEFAULT_PROFILE"
-   _gh_profile_activate "$GH_DEFAULT_PROFILE" 2>/dev/null
-fi
+## Sync profile exports after ~/.gh-profiles.zsh (hand-edited files may set name without GH_PROFILE_* env)
+_gh_profile_sync_startup() {
+   if [[ -n "$GH_ACTIVE_PROFILE" ]]; then
+      if _gh_profile_activate "$GH_ACTIVE_PROFILE" 2>/dev/null; then
+         return 0
+      fi
+      unset GH_ACTIVE_PROFILE GH_PROFILE_ORG GH_PROFILE_TOKEN GH_PROFILE_VIS GH_PROFILE_MODE
+   fi
+   if [[ -n "$GH_DEFAULT_PROFILE" ]]; then
+      _gh_profile_activate "$GH_DEFAULT_PROFILE" 2>/dev/null
+   fi
+}
+_gh_profile_sync_startup
 
 ## Resolve token from a token source string
 _gh_resolve_token() {
@@ -74,7 +82,7 @@ _gh_resolve_token() {
          perms=$(stat -f '%Lp' "$path" 2>/dev/null || stat -c '%a' "$path" 2>/dev/null)
          if [[ "$perms" != "600" ]]; then
             echo "⚠ Fixing permissions on $path ($perms → 600)" >&2
-            chmod 600 "$path"
+            _gh_chmod_600 "$path"
          fi
          echo "$(<"$path")"
          ;;
@@ -97,12 +105,41 @@ _gh_resolve_token() {
    esac
 }
 
+_gh_profile_help() {
+   _gh_title "📋 ghprofile — profiles & config"
+   echo ""
+   echo "Quick start:"
+   echo "  ghprofile create          # wizard (writes ~/.gh-profiles.zsh)"
+   echo "  ghprofile list            # all profiles; * = active"
+   echo "  ghprofile use <name>      # switch profile (sets org/mode for smart defaults)"
+   echo "  ghprofile show            # active profile details"
+   echo ""
+   echo "Config file: ~/.gh-profiles.zsh"
+   echo "  typeset -gA GH_PROFILES"
+   echo "  GH_PROFILES=( myname \"org=ORG token=gh-auth|file:~/.gh-admin-token mode=dev|admin default_vis=all\" )"
+   echo "  GH_DEFAULT_PROFILE=\"myname\"   # optional: auto-activate in new shells"
+   echo ""
+   echo "Escalation:"
+   echo "  ghadmin                   # session → admin profile"
+   echo "  ghdev                     # session → GH_DEFAULT_PROFILE (usually dev)"
+   echo "  ghadmin ghvar set ...     # one-shot admin (parent shell stays dev)"
+   echo ""
+   echo "Audit log (admin actions):  ghaudit log   → ~/.gh-toolkit-audit.log"
+   echo "Org audit script (pwsh):     ghorgaudit    (see script paths in ghorgaudit)"
+   echo ""
+   _gh_rule
+}
+
 ## Profile commands
 ghprofile() {
    local subcmd="${1:-show}"
    shift 2>/dev/null
 
    case "$subcmd" in
+      help)
+         _gh_profile_help
+         ;;
+
       list)
          _gh_title "📋 GitHub Profiles"
          if [[ ${#GH_PROFILES} -eq 0 ]]; then
@@ -243,6 +280,7 @@ PROFILES_HEADER
          echo "Usage: ghprofile <command>"
          echo ""
          echo "Commands:"
+         echo "  help     Full guide (config file, escalation, audit commands)"
          echo "  list     Show all profiles"
          echo "  use      Switch to a profile"
          echo "  show     Show active profile details"
@@ -250,6 +288,7 @@ PROFILES_HEADER
          echo ""
          echo "Profiles define: org, token source, mode (dev/admin), default visibility"
          echo "Config: ~/.gh-profiles.zsh"
+         echo "More: ghprofile help   |   ghhelp (full toolkit)"
          return 1
          ;;
    esac

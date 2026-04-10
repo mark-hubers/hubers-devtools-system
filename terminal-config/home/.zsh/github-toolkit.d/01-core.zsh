@@ -2,6 +2,16 @@
 # GitHub CLI Toolkit — Core (dependency checks, doctor)
 # ============================================================================
 
+## chmod 600 using absolute path — survives minimal PATH in subshells (e.g. ghadmin one-shot)
+_gh_chmod_600() {
+   local f="$1"
+   if [[ -x /bin/chmod ]]; then
+      /bin/chmod 600 "$f"
+   else
+      command chmod 600 "$f"
+   fi
+}
+
 _gh_require_command() {
    local cmd="$1"
    local install_hint="${2:-Install and retry.}"
@@ -89,7 +99,7 @@ ghdoctor() {
    if [[ -n "$GH_ACTIVE_PROFILE" ]]; then
       echo "✓ Active profile: $GH_ACTIVE_PROFILE (mode=$GH_PROFILE_MODE)"
    else
-      echo "⚠ No active profile (run: ghprofile create)"
+      echo "⚠ No active profile (run: ghprofile create or ghprofile help)"
    fi
 
    ## Check admin token

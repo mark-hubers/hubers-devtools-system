@@ -28,7 +28,7 @@ _gh_admin() {
    perms=$(stat -f '%Lp' "$token_file" 2>/dev/null || stat -c '%a' "$token_file" 2>/dev/null)
    if [[ "$perms" != "600" ]]; then
       echo "⚠ Fixing permissions on $token_file ($perms → 600)"
-      chmod 600 "$token_file"
+      _gh_chmod_600 "$token_file"
    fi
    GH_TOKEN=$(<"$token_file") gh "$@"
 }

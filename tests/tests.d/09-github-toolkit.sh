@@ -42,7 +42,7 @@ test_github_toolkit() {
         fail_test "Toolkit modules directory missing: $toolkit_modules_dir"
     fi
 
-    if zsh -c "source \"$source_toolkit_file\"; typeset -f ghdoctor ghvar ghsecret ghteam gh-as ghprofile ghadmin ghdev _gh_parse_target _gh_require_admin _gh_rule _gh_title _gh_kv _gh_flags_parse > /dev/null" > /dev/null 2>&1; then
+    if zsh -c "source \"$source_toolkit_file\"; typeset -f ghdoctor ghvar ghsecret ghteam gh-as ghprofile ghadmin ghdev ghorgaudit ghaudit _gh_parse_target _gh_require_admin _gh_rule _gh_title _gh_kv _gh_flags_parse > /dev/null" > /dev/null 2>&1; then
         pass_test "Key toolkit functions exist after load"
     else
         fail_test "Key toolkit functions missing after load"
@@ -97,6 +97,9 @@ test_github_toolkit() {
 
     if zsh -c "
         source \"$source_toolkit_file\"
+        unset GH_ACTIVE_PROFILE GH_DEFAULT_PROFILE GH_PROFILE_MODE GH_PROFILE_ORG GH_PROFILE_TOKEN GH_PROFILE_VIS 2>/dev/null
+        typeset -gA GH_PROFILES
+        GH_PROFILES=()
         _gh_parse_target() {
             _GH_SCOPE='repo'
             _GH_TARGET_LABEL='owner/repo'
@@ -119,6 +122,9 @@ test_github_toolkit() {
 
     if zsh -c "
         source \"$source_toolkit_file\"
+        unset GH_ACTIVE_PROFILE GH_DEFAULT_PROFILE GH_PROFILE_MODE GH_PROFILE_ORG GH_PROFILE_TOKEN GH_PROFILE_VIS 2>/dev/null
+        typeset -gA GH_PROFILES
+        GH_PROFILES=()
         typeset -gi _GH_CALL_COUNT=0
         _gh_parse_target() {
             _GH_SCOPE='repo'
@@ -153,6 +159,9 @@ test_github_toolkit() {
 
     if zsh -c "
         source \"$source_toolkit_file\"
+        unset GH_ACTIVE_PROFILE GH_DEFAULT_PROFILE GH_PROFILE_MODE GH_PROFILE_ORG GH_PROFILE_TOKEN GH_PROFILE_VIS 2>/dev/null
+        typeset -gA GH_PROFILES
+        GH_PROFILES=()
         tmp_file=\"\$(mktemp)\"
         capture_file=\"\$(mktemp)\"
         cat > \"\$tmp_file\" << 'EOF'
@@ -187,6 +196,9 @@ EOF
 
     if zsh -c "
         source \"$source_toolkit_file\"
+        unset GH_ACTIVE_PROFILE GH_DEFAULT_PROFILE GH_PROFILE_MODE GH_PROFILE_ORG GH_PROFILE_TOKEN GH_PROFILE_VIS 2>/dev/null
+        typeset -gA GH_PROFILES
+        GH_PROFILES=()
         empty_file=\"\$(mktemp)\"
         comments_file=\"\$(mktemp)\"
         malformed_file=\"\$(mktemp)\"
@@ -227,6 +239,7 @@ EOF
 
     if zsh -c "
         source \"$source_toolkit_file\"
+        unset GH_ACTIVE_PROFILE GH_DEFAULT_PROFILE GH_PROFILE_MODE GH_PROFILE_ORG GH_PROFILE_TOKEN GH_PROFILE_VIS 2>/dev/null
         typeset -gA GH_PROFILES
         GH_PROFILES=(
             devprofile   'org=my-org token=gh-auth mode=dev default_vis=all'
@@ -247,6 +260,9 @@ EOF
 
     if zsh -c "
         source \"$source_toolkit_file\"
+        unset GH_DEFAULT_PROFILE GH_PROFILE_ORG GH_PROFILE_TOKEN GH_PROFILE_VIS 2>/dev/null
+        typeset -gA GH_PROFILES
+        GH_PROFILES=()
         GH_ACTIVE_PROFILE='x'
         GH_PROFILE_MODE='dev'
         _gh_require_admin > /dev/null 2>&1 && exit 1
@@ -262,6 +278,7 @@ EOF
 
     if zsh -c "
         source \"$source_toolkit_file\"
+        unset GH_DEFAULT_PROFILE 2>/dev/null
         typeset -gA GH_PROFILES
         GH_PROFILES=(onlyadmin 'org=o1 token=gh-auth mode=admin')
         ## Subshell does not inherit shell functions; use child zsh to read exported env
