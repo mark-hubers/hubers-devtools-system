@@ -72,14 +72,17 @@ _ghvar_list() {
 
    _gh_parse_target "$target" || return 1
 
-   local result
-   result=$(_gh_scoped api "$_GH_API_PATH" --paginate 2>&1)
+   local result err_output
+   err_output=$(mktemp)
+   result=$(_gh_scoped api "$_GH_API_PATH" --paginate 2>"$err_output")
    local rc=$?
 
    if [[ $rc -ne 0 ]]; then
-      _gh_handle_error "$result" "list variables for $_GH_TARGET_LABEL"
+      _gh_handle_error "$(cat "$err_output")" "list variables for $_GH_TARGET_LABEL"
+      rm -f "$err_output"
       return 1
    fi
+   rm -f "$err_output"
 
    if [[ $json_mode -eq 1 ]]; then
       echo "$result" | jq '.variables // []'

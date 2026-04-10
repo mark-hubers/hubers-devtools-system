@@ -26,7 +26,7 @@ _gh_admin() {
    fi
    local perms
    perms=$(stat -f '%Lp' "$token_file" 2>/dev/null || stat -c '%a' "$token_file" 2>/dev/null)
-   if [[ "$perms" != "600" ]]; then
+   if [[ -n "$perms" && "$perms" != "600" ]]; then
       echo "⚠ Fixing permissions on $token_file ($perms → 600)"
       _gh_chmod_600 "$token_file"
    fi

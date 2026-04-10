@@ -80,7 +80,7 @@ _gh_resolve_token() {
          fi
          local perms
          perms=$(stat -f '%Lp' "$path" 2>/dev/null || stat -c '%a' "$path" 2>/dev/null)
-         if [[ "$perms" != "600" ]]; then
+         if [[ -n "$perms" && "$perms" != "600" ]]; then
             echo "⚠ Fixing permissions on $path ($perms → 600)" >&2
             _gh_chmod_600 "$path"
          fi
