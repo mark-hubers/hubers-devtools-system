@@ -283,6 +283,45 @@ test_github_identity() {
         fail_test "ghid import bled the bound identity's token into the new identity"
     fi
 
+    ## --- regression: `ghid use` must return 0 (rc=1 quirk broke && chains) ---
+    if zsh -c "
+        source \"$source_toolkit_file\"
+        export GH_ID_HOME=\"\$(mktemp -d)/ids\"
+        gh() { return 0; }
+        ghid use work > /dev/null 2>&1 || exit 1          ## routing OFF → rc 0
+        ghid push on  > /dev/null 2>&1
+        ghid use work > /dev/null 2>&1 || exit 1          ## routing ON  → rc 0
+        ## also verify it works as the FIRST link of an && chain (the real bug)
+        ghid use work > /dev/null 2>&1 && echo chained > /dev/null || exit 1
+        rm -rf \"\${GH_ID_HOME:h}\"
+        exit 0
+    "; then
+        pass_test "ghid use returns 0 (does not abort && chains)"
+    else
+        fail_test "ghid use returned non-zero (the rc=1 regression is back)"
+    fi
+
+    ## --- ghid login --scopes passes the scope through to gh auth login ---
+    if zsh -c "
+        source \"$source_toolkit_file\"
+        export GH_ID_HOME=\"\$(mktemp -d)/ids\"
+        capture=\"\$(mktemp)\"
+        gh() { echo \"\$*\" >> \"\$capture\"; return 0; }
+        ghid login personal --scopes workflow > /dev/null 2>&1
+        grep -q -- '--scopes workflow' \"\$capture\" || exit 1
+        grep -q -- '--web' \"\$capture\" || exit 1
+        ## without --scopes, no --scopes flag is passed
+        : > \"\$capture\"
+        ghid login personal > /dev/null 2>&1
+        grep -q -- '--scopes' \"\$capture\" && exit 1
+        rm -f \"\$capture\"; rm -rf \"\${GH_ID_HOME:h}\"
+        exit 0
+    "; then
+        pass_test "ghid login --scopes passes scope to gh (and omits it otherwise)"
+    else
+        fail_test "ghid login --scopes pass-through failed"
+    fi
+
     ## --- Option C: per-shell git push routing toggle ---
     if zsh -c "
         source \"$source_toolkit_file\"

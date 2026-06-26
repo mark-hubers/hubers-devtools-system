@@ -226,7 +226,10 @@ ghid() {
          fi
          ## If push routing is on, it follows the new identity automatically
          ## (the git env is identity-independent — gh reads GH_CONFIG_DIR).
-         [[ "${GH_ID_PUSH_ROUTE:-}" == "1" ]] && echo "  git push → '$name' (routing on)"
+         if [[ "${GH_ID_PUSH_ROUTE:-}" == "1" ]]; then
+            echo "  git push → '$name' (routing on)"
+         fi
+         return 0   ## explicit: never leak a falsy rc from the last test (breaks && chains)
          ;;
 
       push)
@@ -264,15 +267,28 @@ ghid() {
          ;;
 
       login)
-         local name="${1:-}"
+         local name="" scopes=""
+         while [[ $# -gt 0 ]]; do
+            case "$1" in
+               --scopes|-s) scopes="${2:-}"; shift 2 ;;
+               *)           [[ -z "$name" ]] && name="$1"; shift ;;
+            esac
+         done
          if [[ -z "$name" ]]; then
-            echo "Usage: ghid login <name>"
+            echo "Usage: ghid login <name> [--scopes <scope,scope>]"
+            echo "  e.g. ghid login personal --scopes workflow   (to push .github/workflows files)"
             return 1
          fi
          _gh_id_valid_name "$name" || { echo "✗ Invalid identity name: '$name'"; return 1; }
          _gh_id_use_quiet "$name" || return 1
          echo "🌐 Logging into isolated identity '$name' (config dir: $GH_CONFIG_DIR)"
-         gh auth login --hostname github.com --git-protocol https --web
+         ## GH_CONFIG_DIR is already exported by _gh_id_use_quiet, so this auth
+         ## touches ONLY this identity — never your global/other accounts.
+         if [[ -n "$scopes" ]]; then
+            gh auth login --hostname github.com --git-protocol https --web --scopes "$scopes"
+         else
+            gh auth login --hostname github.com --git-protocol https --web
+         fi
          ;;
 
       import)
@@ -417,7 +433,7 @@ _gh_id_help() {
    echo ""
    echo "Commands:"
    echo "  ghid use <name>        Bind THIS shell to identity <name>"
-   echo "  ghid login <name>      Bind + browser-login a new identity"
+   echo "  ghid login <name> [--scopes s]  Bind + browser-login (e.g. --scopes workflow)"
    echo "  ghid import <name> [a] Seed identity from a global gh token (no browser)"
    echo "  ghid show              Show this shell's identity (default)"
    echo "  ghid list              List all identities + their accounts"
