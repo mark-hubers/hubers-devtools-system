@@ -45,6 +45,7 @@ run_all_tests() {
     test_asdf
     test_functions
     test_github_toolkit
+    test_github_identity
     test_github_toolkit_integration
 
     # Print summary and exit with appropriate code
@@ -90,6 +91,9 @@ run_single_test() {
             ;;
         github|gh|github-toolkit)
             test_github_toolkit
+            ;;
+        identity|ghid|github-identity)
+            test_github_identity
             ;;
         github-live|gh-live|github-integration)
             test_github_toolkit_integration

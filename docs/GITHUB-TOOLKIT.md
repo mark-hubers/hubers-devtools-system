@@ -133,6 +133,81 @@ Permissions for `set-repo`: `pull`, `triage`, `push`, `maintain`, `admin`
 | `ghwho` | Show current vs required account |
 | `gh-as <acct> <cmd>` | Run command as specific account |
 
+> **Heads-up:** `ghswitch` / `ghauto` / `gh-as` all mutate the **single global**
+> `~/.config/gh/hosts.yml`. That is fine for "set my one active account," but it
+> means **two terminals cannot hold two different accounts at the same time** —
+> the last switch wins. For concurrent, per-session identities, use `ghid`.
+
+### ghid — Per-Session Identity Isolation
+
+Hold a **different GitHub login in each shell at the same time** (e.g. personal
+in your project session, work in another) with **no clobbering**. Each identity
+is an isolated `gh` config directory (its own `hosts.yml`) under
+`$GH_ID_HOME` (default `~/.config/gh-identities`), selected per-shell via
+`GH_CONFIG_DIR`.
+
+**git push:** by default `gh`/the API is isolated per-shell, but `git push` over
+HTTPS uses your **global** git credential helper (e.g. `osxkeychain`), which is
+identity-blind. Two ways to make push follow the identity:
+
+- **`ghid push on`** (recommended, per-shell, opt-in) — routes `github.com` push
+  through `gh auth git-credential` for **this shell only**, via git's
+  `GIT_CONFIG_*` environment variables. No `~/.gitconfig` change, no effect on
+  other shells or your keychain. Push then follows whatever `ghid use` bound, and
+  follows a later `ghid use` switch automatically. `ghid push off` or `ghid clear`
+  reverts. It refuses to run if some other tool already owns `GIT_CONFIG_COUNT`.
+- **`gh auth setup-git`** (global) — makes *all* HTTPS github push route through
+  gh. Simpler but changes git for every repo/shell.
+
+`ghid show` reports the current push state (routing on / global gh helper /
+default helper). Don't assume push is isolated — check it.
+
+```bash
+ghid use work        # gh/API → work
+ghid push on         # git push in THIS shell → work too (no global change)
+ghid use personal    # gh/API AND git push → personal now (routing follows)
+ghid push off        # back to your default git credential helper
+```
+
+| Command | Description |
+|---------|-------------|
+| `ghid use <name>` | Bind **this shell** to identity `<name>` (isolated config dir) |
+| `ghid login <name>` | Bind + browser-login a brand-new identity |
+| `ghid import <name> [account]` | Seed an identity from a token already in your global `gh` (no browser) |
+| `ghid show` | Show this shell's identity + resolved account (default subcommand) |
+| `ghid list` | List all identities and their logged-in accounts |
+| `ghid clear` | Unbind — revert this shell to global `~/.config/gh` (also turns push routing off) |
+| `ghid which` | Print the bound identity name (for scripts/prompt) |
+| `ghid push on\|off\|status` | Route `git push` through the bound identity, **this shell only** (opt-in) |
+| `ghid auto on\|off` | Auto-bind from a `.gh-id` file on `cd` (opt-in `chpwd` hook) |
+
+**Per-repo binding (works for fresh subshells / CI / agents):** put an identity
+name in a `.gh-id` file at the repo root (gitignore it) and run `ghid auto on`.
+`cd`-ing into the repo binds that identity. Because it resolves from the
+filesystem (PWD), it survives subshells that don't inherit env vars.
+
+> **Auto-bind trust (residual risk):** auto-bind only ever selects an identity
+> you **already created** — it refuses to materialize a new one from a
+> repo-supplied name, validates the name, and **echoes the rebind** so it is
+> never silent. Residual risk: a *cloned hostile repo* whose `.gh-id` names an
+> identity you own (e.g. `work`) will rebind your shell on `cd`. Enable
+> `ghid auto on` only in trees you trust; the printed `🔐 ghid: bound to…`
+> line is your signal to notice an unexpected rebind.
+
+**Prompt tag:** `_gh_id_prompt_info` emits `[id:<name>]` — wire it into your
+`PROMPT` to see which identity a shell is bound to.
+
+```bash
+# One-time: seed two identities from your existing global logins
+ghid import personal mark-hubers
+ghid import work     Mark-Hubers_alvaria
+
+# Then, in any shell:
+ghid use personal     # this terminal is now "personal"
+gh repo create ...    # uses personal; git push uses personal too
+# ...meanwhile another terminal can `ghid use work` with zero interference
+```
+
 ---
 
 ## Global Flags
@@ -170,6 +245,11 @@ All commands use `_gh_handle_error()` which detects:
 4. Secret values never echoed to terminal (`read -s`)
 5. Secret values piped to `gh secret set` (not passed as arguments)
 6. Destructive operations require confirmation or `--dry-run`
+7. `ghid` identity dirs are created `700`; identity names are validated to a
+   safe charset (no `..`, `/`, or leading slash) to prevent path traversal
+   outside `$GH_ID_HOME`
+8. `ghid import` reads tokens via `gh auth token` and pipes them to
+   `gh auth login --with-token` — tokens are never placed in argv or logged
 
 ---
 

@@ -31,10 +31,10 @@ test_github_toolkit() {
             ((mod_count++))
             zsh -n "$mod" > /dev/null 2>&1 || mod_fail=1
         done
-        if [[ $mod_fail -eq 0 && $mod_count -eq 10 ]]; then
-            pass_test "All 10 toolkit modules syntax-check clean"
+        if [[ $mod_fail -eq 0 && $mod_count -eq 11 ]]; then
+            pass_test "All 11 toolkit modules syntax-check clean"
         elif [[ $mod_fail -eq 0 ]]; then
-            fail_test "Toolkit module count is $mod_count (expected 10)"
+            fail_test "Toolkit module count is $mod_count (expected 11)"
         else
             fail_test "One or more toolkit modules failed zsh -n"
         fi

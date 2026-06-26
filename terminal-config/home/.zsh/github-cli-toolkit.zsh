@@ -11,6 +11,7 @@
 #     02-infra.zsh     — admin token, target parsing, error handling
 #     03-profiles.zsh  — profiles, escalation, guardrails, audit log
 #     04-accounts.zsh  — multi-account (ghlist, ghadd, ghswitch, gh-as)
+#     04-identity.zsh  — per-session identity isolation (ghid, GH_CONFIG_DIR)
 #     05-repos.zsh     — repos, PRs, issues, branches, workflows, help, aliases
 #     06-variables.zsh — ghvar (list/get/set/delete/import)
 #     07-secrets.zsh   — ghsecret (list/set/delete)

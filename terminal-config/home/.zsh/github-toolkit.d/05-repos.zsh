@@ -574,6 +574,16 @@ ACCOUNT MANAGEMENT:
   ghaccounts        - List accounts + owner mappings
   ghstatus          - Check authentication status
 
+IDENTITY ISOLATION (different login per session — no clobbering):
+  ghid use <name>   - Bind THIS shell to an isolated gh identity
+  ghid login <name> - Bind + browser-login a new identity
+  ghid import <n> [a] - Seed identity from a global gh token (no browser)
+  ghid show         - Show this shell's identity (default)
+  ghid list         - List identities + their accounts
+  ghid clear        - Unbind (back to global ~/.config/gh)
+  ghid push on|off  - Route git push through the bound identity (this shell)
+  ghid auto on|off  - Auto-bind from a .gh-id file on cd
+
 VARIABLES (Org/Repo):
   ghvar list [target]               - List variables
   ghvar get <name> [target]         - Show variable details
