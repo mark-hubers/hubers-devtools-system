@@ -58,6 +58,32 @@ if [[ -f ~/.zshrc ]] && grep -q "$PRESERVE_MARKER" ~/.zshrc; then
     fi
 fi
 
+# ----------------------------------------------------------------------------
+# Scrub known-dead cruft from the preserved content.
+# The PRESERVE section is copied forward verbatim on every reinstall, so lines
+# left behind by tools that changed or were removed (e.g. asdf's libexec/asdf.sh,
+# gone since asdf 0.16) get carried forever and error on every shell start.
+# Each pattern below is an ERE for a line that is safe to drop. We log what we
+# remove so nothing disappears silently.
+# ----------------------------------------------------------------------------
+OBSOLETE_PATTERNS=(
+    '^[[:space:]]*(\.|source)[[:space:]]+.*libexec/asdf\.sh'  # asdf.sh - removed in asdf 0.16+ (matches brew --prefix and full-path forms)
+    '^[[:space:]]*#[[:space:]]*asdf version manager[[:space:]]*$'  # orphaned comment for the above
+)
+if [[ -n "$PRESERVED_CONTENT" ]]; then
+    for pat in "${OBSOLETE_PATTERNS[@]}"; do
+        removed=$(printf '%s\n' "$PRESERVED_CONTENT" | grep -E "$pat")
+        if [[ -n "$removed" ]]; then
+            while IFS= read -r line; do
+                echo "   🧹 Removing obsolete line: $line"
+            done <<< "$removed"
+            PRESERVED_CONTENT=$(printf '%s\n' "$PRESERVED_CONTENT" | grep -vE "$pat")
+        fi
+    done
+    # Collapse any run of blank lines left behind down to a single blank line
+    PRESERVED_CONTENT=$(printf '%s\n' "$PRESERVED_CONTENT" | cat -s)
+fi
+
 cp home/.zshrc ~/
 
 # Append preserved content back
