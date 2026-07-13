@@ -223,19 +223,19 @@ cmd_check() {
         echo -e "${BOLD}${MAGENTA}▸ $cat_display${NC}"
         
         for tool in $(get_tools_in_category "$category"); do
-            ((total++))
+            total=$((total + 1))
             local desc=$(get_tool_field "$category" "$tool" "description")
             local required=$(get_tool_field "$category" "$tool" "required")
             
             if check_tool_installed "$category" "$tool"; then
-                ((installed++))
+                installed=$((installed + 1))
                 echo -e "  ${GREEN}✅${NC} ${tool} ${CYAN}${desc:+- $desc}${NC}"
             else
                 if [[ "$required" == "true" ]]; then
-                    ((missing_required++))
+                    missing_required=$((missing_required + 1))
                     echo -e "  ${RED}❌${NC} ${tool} ${YELLOW}[REQUIRED]${NC} ${CYAN}${desc:+- $desc}${NC}"
                 else
-                    ((missing_optional++))
+                    missing_optional=$((missing_optional + 1))
                     echo -e "  ${YELLOW}○${NC}  ${tool} ${CYAN}${desc:+- $desc}${NC}"
                 fi
             fi
@@ -505,7 +505,7 @@ cmd_search() {
         for tool in $(get_tools_in_category "$category"); do
             local desc=$(get_tool_field "$category" "$tool" "description")
             if [[ "$tool" == *"$query"* ]] || [[ "${(L)desc}" == *"${(L)query}"* ]]; then
-                ((found++))
+                found=$((found + 1))
                 local indicator="○"
                 local indicator_color="$YELLOW"
                 if check_tool_installed "$category" "$tool"; then
@@ -874,7 +874,7 @@ cmd_sync() {
         for f in "$src_dir/aliases.d"/_devtools_*.zsh(N); do
             [[ -f "$f" ]] || continue
             cp "$f" "$dest_dir/aliases.d/"
-            ((synced++))
+            synced=$((synced + 1))
         done
     fi
 
@@ -883,7 +883,7 @@ cmd_sync() {
         for f in "$src_dir/functions.d"/_devtools_*.zsh(N); do
             [[ -f "$f" ]] || continue
             cp "$f" "$dest_dir/functions.d/"
-            ((synced++))
+            synced=$((synced + 1))
         done
     fi
 
@@ -892,7 +892,7 @@ cmd_sync() {
         for f in "$src_dir/path.d"/_devtools_*.zsh(N); do
             [[ -f "$f" ]] || continue
             cp "$f" "$dest_dir/path.d/"
-            ((synced++))
+            synced=$((synced + 1))
         done
     fi
 
