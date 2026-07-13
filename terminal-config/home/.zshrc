@@ -158,12 +158,18 @@ export TERRAGRUNT_DOWNLOAD="$HOME/.terraform.d/terragrunt"
 # ASDF Version Manager
 # ============================================================================
 
+## asdf 0.16+ (Go rewrite) dropped libexec/asdf.sh - just add shims to PATH.
+## Older asdf (<=0.15) still ships asdf.sh, so source it if present.
 if [[ -f /opt/homebrew/opt/asdf/libexec/asdf.sh ]]; then
-  . /opt/homebrew/opt/asdf/libexec/asdf.sh
+  . /opt/homebrew/opt/asdf/libexec/asdf.sh                     # asdf <= 0.15 (Intel/ARM brew)
 elif [[ -f /usr/local/opt/asdf/libexec/asdf.sh ]]; then
-  . /usr/local/opt/asdf/libexec/asdf.sh
+  . /usr/local/opt/asdf/libexec/asdf.sh                        # asdf <= 0.15 (Intel brew)
 elif [[ -f "$HOME/.asdf/asdf.sh" ]]; then
-  . "$HOME/.asdf/asdf.sh"
+  . "$HOME/.asdf/asdf.sh"                                      # asdf <= 0.15 (git install)
+elif command -v asdf >/dev/null 2>&1; then
+  ## asdf 0.16+ : no script to source, add the shims dir to PATH
+  export ASDF_DATA_DIR="${ASDF_DATA_DIR:-$HOME/.asdf}"
+  export PATH="$ASDF_DATA_DIR/shims:$PATH"
 fi
 
 # ============================================================================
