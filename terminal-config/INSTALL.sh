@@ -86,6 +86,16 @@ fi
 
 cp home/.zshrc ~/
 
+# tmux config (persistent iTerm2 sessions - see _devtools_tmux-persist.zsh)
+if [ -f home/.tmux.conf ]; then
+  if [ -f ~/.tmux.conf ] && ! cmp -s home/.tmux.conf ~/.tmux.conf; then
+    cp ~/.tmux.conf ~/.tmux.conf.backup.$(date +%Y%m%d-%H%M%S)
+    echo "   📦 Backed up existing ~/.tmux.conf"
+  fi
+  cp home/.tmux.conf ~/
+  echo "   ✅ Installed ~/.tmux.conf"
+fi
+
 # Append preserved content back
 if [[ -n "$PRESERVED_CONTENT" ]]; then
     echo "$PRESERVED_CONTENT" >> ~/.zshrc
@@ -94,7 +104,7 @@ fi
 
 # Sync modular config files (only _devtools_* managed files)
 echo "🔧 Installing modular configs..."
-for dir in aliases.d functions.d path.d; do
+for dir in aliases.d functions.d path.d extensions.d; do
   if [[ -d "home/.zsh/$dir" ]]; then
     for f in home/.zsh/$dir/_devtools_*.zsh; do
       [[ -f "$f" ]] && cp "$f" ~/.zsh/$dir/
