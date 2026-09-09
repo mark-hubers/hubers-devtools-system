@@ -225,6 +225,11 @@ done
 # ============================================================================
 
 [[ -f ~/.zsh/network-toolkit.zsh ]] && source ~/.zsh/network-toolkit.zsh
+## Reach internal Alvaria hosts from a machine that cannot see them.
+[[ -f ~/.zsh/work-proxy.zsh ]] && source ~/.zsh/work-proxy.zsh
+## Point nxrm-xfer at that tunnel, and ONLY nxrm-xfer. Must come after
+## work-proxy.zsh: it looks for a listening port, which workproxy provides.
+[[ -f ~/.zsh/nexus-proxy.zsh ]] && source ~/.zsh/nexus-proxy.zsh
 [[ -f ~/.zsh/aws-sso-toolkit.zsh ]] && source ~/.zsh/aws-sso-toolkit.zsh
 [[ -f ~/.zsh/github-cli-toolkit.zsh ]] && source ~/.zsh/github-cli-toolkit.zsh
 [[ -f ~/.zsh/bookmarks.zsh ]] && source ~/.zsh/bookmarks.zsh

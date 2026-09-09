@@ -44,6 +44,9 @@ run_all_tests() {
     test_config
     test_asdf
     test_functions
+    test_github_toolkit
+    test_github_identity
+    test_github_toolkit_integration
 
     # Print summary and exit with appropriate code
     print_test_summary
@@ -86,6 +89,15 @@ run_single_test() {
         functions|funcs)
             test_functions
             ;;
+        github|gh|github-toolkit)
+            test_github_toolkit
+            ;;
+        identity|ghid|github-identity)
+            test_github_identity
+            ;;
+        github-live|gh-live|github-integration)
+            test_github_toolkit_integration
+            ;;
         *)
             echo "Unknown test: $test_name"
             echo ""
@@ -98,6 +110,8 @@ run_single_test() {
             echo "  config      - Configuration preservation"
             echo "  asdf        - asdf version manager"
             echo "  functions   - Modular functions (.d directories)"
+            echo "  github      - GitHub CLI toolkit"
+            echo "  github-live - GitHub toolkit live integration checks (opt-in)"
             echo ""
             exit 1
             ;;
