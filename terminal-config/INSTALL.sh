@@ -84,6 +84,39 @@ if [[ -n "$PRESERVED_CONTENT" ]]; then
     PRESERVED_CONTENT=$(printf '%s\n' "$PRESERVED_CONTENT" | cat -s)
 fi
 
+# ----------------------------------------------------------------------------
+# Report anything in the CURRENT .zshrc that will NOT survive this install.
+#
+# Only content below "# PRESERVE BELOW" is carried forward. Anything hand-added
+# ABOVE that marker is replaced by the shipped .zshrc. On 2026-09-11 that
+# silently removed 29 lines from the Mac Studio, including an ssh() guard whose
+# own comment read "Do not remove this guard" - it suppresses an iTerm2 escape
+# sequence that had already caused three wrong answers in automated work.
+#
+# A backup is taken either way, so nothing was unrecoverable. But nothing SAID
+# it was happening. Silent removal is the bug, not the removal.
+# ----------------------------------------------------------------------------
+if [[ -f ~/.zshrc ]]; then
+    _dropped=$(comm -23 \
+        <(sed 's/^[[:space:]]*//' ~/.zshrc | grep -vE '^[[:space:]]*$' | sort -u) \
+        <({ cat home/.zshrc; printf '%s\n' "$PRESERVED_CONTENT"; } | sed 's/^[[:space:]]*//' | grep -vE '^[[:space:]]*$' | sort -u))
+    if [[ -n "$_dropped" ]]; then
+        _dropcount=$(printf '%s\n' "$_dropped" | grep -c .)
+        _droplog=~/.zshrc.dropped.$(date +%Y%m%d-%H%M%S)
+        printf '%s\n' "$_dropped" > "$_droplog"
+        echo ""
+        echo "⚠️  $_dropcount line(s) in your current ~/.zshrc will NOT survive this install:"
+        printf '%s\n' "$_dropped" | head -12 | sed 's/^/      /'
+        [[ $_dropcount -gt 12 ]] && echo "      ... and $((_dropcount - 12)) more"
+        echo ""
+        echo "   📄 Full list: $_droplog"
+        echo "   💡 To keep any of these PERMANENTLY, move them to ~/.zshrc_local"
+        echo "      (never overwritten by this installer), or put them below the"
+        echo "      '# PRESERVE BELOW' marker in ~/.zshrc."
+        echo ""
+    fi
+fi
+
 cp home/.zshrc ~/
 
 # tmux config (persistent iTerm2 sessions - see _devtools_tmux-persist.zsh)
